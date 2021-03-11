@@ -30,7 +30,7 @@ def create_encoder():
     return model
 
 
-def create_classifier(encoder, trainable=True):
+def create_classifier(encoder, trainable=False):
 
     for layer in encoder.layers:
         layer.trainable = trainable
