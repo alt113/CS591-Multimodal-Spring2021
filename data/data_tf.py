@@ -5,14 +5,11 @@
 
 
 import tensorflow as tf
-import pathlib
-import tensorflow_io as tfio
 import numpy as np
 
 import os
 from PIL import Image
 import orjson
-import cv2
 
 import matplotlib.pyplot as plt
 
@@ -78,11 +75,8 @@ def sample_generator(split='train'):
 
 ds = tf.data.Dataset.from_generator(
     sample_generator,
-    output_signature=(
-        tf.TensorSpec(shape=(128, 128, 3), dtype=tf.int32),
-        tf.TensorSpec(shape=(128, 128, 3), dtype=tf.int32),
-        tf.TensorSpec(shape=(), dtype=tf.string)
-    )
+    (tf.int32, tf.int32, tf.string),
+    ([128, 128, 3], [128, 128, 3], [None])
 )
 
 
