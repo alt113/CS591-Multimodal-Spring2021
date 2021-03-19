@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 # In[54]:
 
 
-data_path = '../../fat/single'
+data_path = '/projectnb/cs591-mm-ml/prichter/single/fat'
 
 def load_image(data_path, box):
     image = Image.open(data_path).crop(box)
