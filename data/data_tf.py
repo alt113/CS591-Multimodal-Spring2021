@@ -51,6 +51,12 @@ def map_class_labels(rgb, depth, label):
         return rgb, depth, '19'
     elif label == '061_foam_brick_16k':
         return rgb, depth, '20'
+    else:
+        return rgb, depth, label
+
+
+def normalize_image(rgb, depth, label):
+    return tf.cast(rgb, tf.float32) / 255., depth, label
 
 
 def load_image(data_path, box):
@@ -113,6 +119,7 @@ ds = tf.data.Dataset.from_generator(
 )
 
 ds = ds.map(map_class_labels)
+ds = ds.map(normalize_image)
 
 for image, depth, label in ds.take(1):
     i = image

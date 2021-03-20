@@ -9,7 +9,7 @@ import numpy as np
 
 
 def make_pairs(images, labels):
-    # initialize two empty lists to hold the (image, image) pairs and
+    # initialize two empty lists to hold the (rgb, depth) pairs and
     # labels to indicate if a pair is positive or negative
     pair_images = []
     pair_labels = []

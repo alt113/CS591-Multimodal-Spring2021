@@ -8,23 +8,51 @@
     *Note: User has to be in the CWD of the train.py script.
 """
 # import the necessary packages
+from data.data_tf import sample_generator, map_class_labels, normalize_image
 from shared_weights.supervised.helpers.siamese_network import build_siamese_model
 from shared_weights.supervised.helpers import metrics, config, utils
+
+import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Lambda
-from tensorflow.keras.datasets import mnist
 import numpy as np
 
-# load MNIST dataset and scale the pixel values to the range of [0, 1]
-print("[INFO] loading MNIST dataset...")
-(trainX, trainY), (testX, testY) = mnist.load_data()
-trainX = trainX / 255.0
-testX = testX / 255.0
+input_shape = [128, 128, 3]
+batch_size = 16
 
-# add a channel dimension to the images
-trainX = np.expand_dims(trainX, axis=-1)
-testX = np.expand_dims(testX, axis=-1)
+# load FAT dataset and scale the pixel values of RGB to the range of [0, 1]
+print("[INFO] loading FAT dataset...")
+train_ds = tf.data.Dataset.from_generator(
+    sample_generator(split='train'),
+    (tf.int32, tf.int32, tf.string),
+    (input_shape, input_shape, [])
+)
+
+val_ds = tf.data.Dataset.from_generator(
+    sample_generator(split='val'),
+    (tf.int32, tf.int32, tf.string),
+    (input_shape, input_shape, [])
+)
+
+test_ds = tf.data.Dataset.from_generator(
+    sample_generator(split='test'),
+    (tf.int32, tf.int32, tf.string),
+    (input_shape, input_shape, [])
+)
+
+train_ds = train_ds.map(map_class_labels)
+train_ds = train_ds.map(normalize_image)
+train_ds = train_ds.batch(batch_size=batch_size)
+
+val_ds = val_ds.map(map_class_labels)
+val_ds = val_ds.map(normalize_image)
+val_ds = val_ds.batch(batch_size=batch_size)
+
+test_ds = test_ds.map(map_class_labels)
+test_ds = test_ds.map(normalize_image)
+test_ds = test_ds.batch(batch_size=batch_size)
+
 
 # prepare the positive and negative pairs
 print("[INFO] preparing positive and negative pairs...")
