@@ -1,4 +1,9 @@
-#!/usr/bin/env python
+Show
+Dotfiles
+Show
+Owner / Mode
+/ projectnb / cs591 - mm - ml / rnasr /
+# !/usr/bin/env python
 # coding: utf-8
 
 # In[2]:
@@ -13,17 +18,17 @@ import orjson
 
 import matplotlib.pyplot as plt
 
-
 # In[54]:
 
+data_path = '/projectnb/cs591-mm-ml/prichter/single'
 
-data_path = '/projectnb/cs591-mm-ml/prichter/single/fat'
 
 def load_image(data_path, box):
     image = Image.open(data_path).crop(box)
     image = image.resize((128, 128))
     image = tf.cast(np.array(image), tf.int32)
     return image
+
 
 def load_depth_image(data_path, box):
     image = Image.open(data_path).crop(box)
@@ -35,6 +40,7 @@ def load_depth_image(data_path, box):
     image = tf.cast(np.array(image), tf.int32)
     return image
 
+
 def sample_generator(split='train'):
     classes = os.listdir(data_path)
     scenes = os.listdir(os.path.join(data_path, classes[0]))
@@ -44,7 +50,7 @@ def sample_generator(split='train'):
         numbers = [str(im_id).zfill(6) for im_id in range(80, 90)]
     else:
         numbers = [str(im_id).zfill(6) for im_id in range(90, 100)]
-        
+
     annos = []
     for c in classes:
         for s in scenes:
@@ -63,7 +69,7 @@ def sample_generator(split='train'):
                         ]
                         annos.append((c, s, n, lr, bbox))
                     f.close()
-    
+
     for c, s, n, lr, box in annos:
         rgb_image = load_image(os.path.join(data_path, c, s, n + '.' + lr + '.jpg'), box)
         depth_image = load_depth_image(os.path.join(data_path, c, s, n + '.' + lr + '.depth.png'), box)
@@ -76,9 +82,8 @@ def sample_generator(split='train'):
 ds = tf.data.Dataset.from_generator(
     sample_generator,
     (tf.int32, tf.int32, tf.string),
-    ([128, 128, 3], [128, 128, 3], [None])
+    ([128, 128, 3], [128, 128, 3], [])
 )
-
 
 # In[56]:
 
@@ -87,21 +92,8 @@ for image, depth, label in ds.take(1):
     i = image
     d = depth
 
-
 # In[57]:
 
 
-plt.imshow(i)
-
-
-# In[58]:
-
-
-plt.imshow(d)
-
-
-# In[ ]:
-
-
-
-
+print(i.shape)
+print(d.shape)
