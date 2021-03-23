@@ -1,3 +1,4 @@
+from multi_input_multi_output.rand_augment import preprocessing_function, HOW_MANY_TO_AUGMENT
 import tensorflow as tf
 import numpy as np
 
@@ -76,6 +77,38 @@ def normalize_image_single(image, label):
     return tf.cast(image, tf.float32) / 255., label
 
 
+def augment_image_single(image, label):
+
+    # Create generator and fit it to an image
+    img_gen = tf.keras.preprocessing.image.ImageDataGenerator(
+        rescale=1./255,
+        preprocessing_function=preprocessing_function
+    )
+    img_gen.fit(image)
+
+    # We want to keep original image and label
+    img_results = [(image / 255.).astype(np.float32)]
+    label_results = [label]
+
+    # Perform augmentation and keep the labels
+    augmented_images = [next(img_gen.flow(image)) for _ in range(HOW_MANY_TO_AUGMENT)]
+    labels = [label for _ in range(HOW_MANY_TO_AUGMENT)]
+
+    # Append augmented data and labels to original data
+    img_results.extend(augmented_images)
+    label_results.extend(labels)
+
+    return img_results, label_results
+
+
+def py_augment(image, label):
+    """
+    In order to use RandAugment inside tf.data.Dataset we must declare a numpy_function
+    """
+    func = tf.numpy_function(augment_image_single, [image, label], [tf.float32, tf.string])
+    return func
+
+
 def load_image(data_path, box):
     image = Image.open(data_path).crop(box)
     image = image.resize((128, 128))
@@ -92,6 +125,7 @@ def load_depth_image(data_path, box):
     image = tf.broadcast_to(image, (128, 128, 3))
     image = tf.cast(np.array(image), tf.int32)
     return image
+
 
 def get_annos(classes, scenes, numbers):
     annos = []
@@ -113,6 +147,7 @@ def get_annos(classes, scenes, numbers):
                         annos.append((c, s, n, lr, bbox))
                     f.close()
     return annos
+
 
 def sample_generator(split='train', data_type='all'):
     classes = os.listdir(data_path)
@@ -139,6 +174,7 @@ def sample_generator(split='train', data_type='all'):
         else:
             yield depth_image, c
 
+
 def fat_dataset(split='train', data_type='all'):
     out_sig = (tf.int32, tf.int32, tf.string)
     out_shape = ([128, 128, 3], [128, 128, 3], [])
@@ -155,20 +191,16 @@ def fat_dataset(split='train', data_type='all'):
         ds = ds.map(normalize_image)
     else:
         ds = ds.map(map_class_labels_single)
-        ds = ds.map(normalize_image_single)
+        ds = ds.map(py_augment).unbatch()
+        # ds = ds.map(normalize_image_single)
     return ds
 
 
 ds = fat_dataset(data_type='rgb')
 
-#for image, depth, label in ds.take(1):
-#    i = image
-#    d = depth
-#    l = label
 for image, label in ds.take(1):
     i = image
     l = label
 
 print(i.shape)
-#print(d.shape)
 print(l)

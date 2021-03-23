@@ -10,7 +10,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input
 
-input_shape = (28, 28, 3)
+input_shape = (128, 128, 3)
 dropout_rate = 0.5
 hidden_units = 512
 num_classes = 10
@@ -78,13 +78,3 @@ def create_classifier(encoder, trainable=False):
         metrics=[keras.metrics.SparseCategoricalAccuracy()],
     )
     return model
-
-
-def build_siamese_model(with_top=False):
-    if with_top:
-        encoder = create_encoder()
-        return create_classifier(encoder=encoder)
-    else:
-        # return the model to the calling function
-        return create_encoder()  # no classification top
-

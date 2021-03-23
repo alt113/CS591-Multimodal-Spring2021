@@ -1,4 +1,4 @@
-#### Multi-Input Multi-Output
+#### Multi-Input Multi-Output (Multinet)
 
 ---
 
@@ -21,17 +21,25 @@ self-supervised pretraining strategies on them. The following is a list of netwo
 - AlexNet
 - VGG (16 and 19)
 - Inception
-- ResNet(50<sup>1</sup>, 101, and 152)
+- ResNet(50<sup>*</sup>, 101, and 152)
 
 
 Any hyperparameter tuning we perform will be based off the [Keras Tuner](https://www.tensorflow.org/tutorials/keras/keras_tuner).
 
-The following is a summary of the results we obtained after performing self-supervised pretraining and then fine-tuning 
-the models on the image classification task.
+There are two possible options to train Multinet:
 
-```
-INSERT TABLE HERE
-```
+1 - Self-supervised pretraining for each base encoder separately, combine them to train a classifiaction
+head while the base encoders are frozen and finally un-freezing the whole model for slow learning rate
+fine tuning.
+
+2 - No pretraining whatsoever, instead create Multinet and train both branches concurrently on the
+            learning feature embeddings and classification.
+
+##### Option 1 Results
+| RGB Encoder  | RGB SSL           | Depth Encoder|    Depth SSL      | Learning Rate       |Validation Accuracy |
+| -------------|:-----------------:| ------------:|------------------:|--------------------:|-------------------:|
+| ResNet50     | Supervised simCLR | ResNet50     |Supervised simCLR  |0.001 (fixed)        |         X%         |
+| ResNet50     |Unsupervised simCLR| ResNet50     |Unsupervised simCLR|0.001 (Cosine Decay) |         X%         |
 
 ---
-<sup>1</sup>ResNet50 is the baseline network architecture.
+<sup>*</sup>ResNet50 is the baseline network architecture.

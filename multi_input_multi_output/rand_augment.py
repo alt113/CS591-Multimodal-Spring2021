@@ -9,9 +9,12 @@
 
                                             )
 """
+import tensorflow as tf
 from PIL import Image, ImageEnhance, ImageOps
 import numpy as np
 import random
+
+HOW_MANY_TO_AUGMENT = 5
 
 
 class Rand_Augment():
@@ -112,7 +115,6 @@ class Rand_Augment():
 
 
 def preprocessing_function(image):
-    randaugment = Rand_Augment()
-    image = Image.fromarray(image.astype(np.uint8))
+    randaugment = Rand_Augment(Numbers=HOW_MANY_TO_AUGMENT)
     image = np.array(randaugment(image))
-    return image.astype(np.float64)
+    return image.astype(tf.float32)

@@ -11,7 +11,7 @@ are the results that we achieve along with the configuration settings for our Si
 | Base Encoder  | Loss          |Validation Accuracy|
 | ------------- |:-------------:| -----:|
 | ResNet50      | BCE           | X %   |
-| ResNet50      | Contrastive Loss      |   X% |
+| ResNet50<sup>*</sup>      | Contrastive Loss      |   X% |
 | ResNet101      | BCE           | X %   |
 | ResNet101      | Contrastive Loss      |   X% |
 | ResNet152      | BCE           | X %   |
@@ -28,3 +28,6 @@ In each of the above configurations we used the following training hyperparamete
 - Batch Size of 64
 - Both Fixed and Cosine decay learning rates of 0.001
 - Trained for 50 epochs
+
+---
+<sup>*</sup> Paper 1 benchmark

@@ -9,14 +9,13 @@
 """
 # import the necessary packages
 from data.data_tf import sample_generator, map_class_labels, normalize_image
-from shared_weights.supervised.helpers.siamese_network import build_siamese_model
-from shared_weights.supervised.helpers import metrics, config, utils
+from shared_weights.helpers.siamese_network import create_encoder
+from shared_weights.helpers import metrics, config, utils
 
 import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Lambda
-import numpy as np
 
 input_shape = [128, 128, 3]
 batch_size = 16
@@ -63,7 +62,7 @@ print("[INFO] preparing positive and negative pairs...")
 print("[INFO] building siamese network...")
 imgA = Input(shape=config.IMG_SHAPE)
 imgB = Input(shape=config.IMG_SHAPE)
-featureExtractor = build_siamese_model()
+featureExtractor = create_encoder()
 featsA = featureExtractor(imgA)
 featsB = featureExtractor(imgB)
 

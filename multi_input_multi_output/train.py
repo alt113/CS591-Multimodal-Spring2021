@@ -2,16 +2,25 @@
 import os
 
 from multi_input_multi_output.models import multi_input_multi_output_model
+from shared_weights.helpers.siamese_network import create_encoder
 from tensorflow.keras.optimizers import Adam
 
 # initialize the number of epochs to train for, initial learning rate,
 # batch size, and image dimensions
 EPOCHS = 50
 INIT_LR = 1e-3
-BS = 32
-IMAGE_DIMS = (96, 96, 3)
+BS = 64
+IMAGE_DIMS = (128, 128, 3)
 PATH_TO_CWD = os.getcwd()
+############
+# OPTION 1 #
+############
+rgb_encoder = create_encoder(base='resnet50')
 
+
+############
+# OPTION 2 #
+############
 model = multi_input_multi_output_model()
 
 # define two dictionaries: one that specifies the loss method for

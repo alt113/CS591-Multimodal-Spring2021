@@ -27,7 +27,10 @@ def create_depth_cnn():
 
 def multi_input_multi_output_model():
     """
-        Two ResNet50 base encoder with separate classifier tops
+        Two base encoder with separate classifier tops. This does not perform any
+        self-supervised pretraining but instead trains both encoders together from scratch.
+
+        TODO - Check out mix & matching different encoders
     """
     rgb = create_rgb_cnn()
     depth = create_depth_cnn()
