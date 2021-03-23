@@ -7,7 +7,7 @@
     input dataset and we will end up having multi-output classification with multi-loss functions
 """
 # import the necessary packages
-from shared_weights.supervised.helpers.siamese_network import create_classifier, create_encoder
+from shared_weights.helpers.siamese_network import create_classifier, create_encoder
 from tensorflow.keras.models import Model
 
 
