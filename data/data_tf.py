@@ -1,4 +1,4 @@
-#from multi_input_multi_output.rand_augment import preprocessing_function, HOW_MANY_TO_AUGMENT
+from multi_input_multi_output.rand_augment import preprocessing_function, HOW_MANY_TO_AUGMENT
 import tensorflow as tf
 import numpy as np
 
@@ -36,10 +36,6 @@ map_labels_dict = {
 
 def normalize_image(images, label):
     return tf.cast(images, tf.float32) / 255., label
-
-
-def normalize_image_single(image, label):
-    return tf.cast(image, tf.float32) / 255., label
 
 
 def augment_image_single(image, label):
@@ -90,12 +86,6 @@ def load_depth_image(data_path, box, label):
     image = tf.broadcast_to(image, (128, 128, 3))
     image = tf.cast(np.array(image), tf.int32)
     return (image, label)
-
-
-def load_images(rgb_path, depth_path, box, label):
-    rgb_image, _ = load_rgb_image(rgb_path, box, label)
-    depth_image, _ = load_depth_image(depth_path, box, label)
-    return (rgb_image, depth_image, label)
 
 
 def get_annos(classes, scenes, numbers):
@@ -213,25 +203,15 @@ def fat_dataset(split='train', data_type='all', batch_size=12, shuffle=False, pa
         ([batch_size], [batch_size], [batch_size, 4], [batch_size]),
     )
 
-    if pairs:
-        ds = ds.map(lambda r, d, b, l: tf.py_function(
-            func=get_pairs,
-            inp=[r, d, b, l, data_type, pairs],
-            Tout=[tf.int32, tf.int32]
-        ))
-        return ds
-
     ds = ds.map(lambda r, d, b, l: tf.py_function(
         func=get_pairs,
         inp=[r, d, b, l, data_type, pairs],
         Tout=[tf.int32, tf.int32]
     ))
+    ds = ds.map(normalize_image)
 
-    if data_type == 'all':
-        ds = ds.map(normalize_image)
-    else:
+    if data_type != 'all':
         ds = ds.map(py_augment).unbatch()
-        # ds = ds.map(normalize_image_single)
     return ds
 
 
