@@ -5,11 +5,11 @@
 import os
 
 # specify the shape of the inputs for our network
-IMG_SHAPE = (28, 28, 1)
+IMG_SHAPE = (128, 128, 3)
 
 # specify the batch size and number of epochs
-BATCH_SIZE = 64
-EPOCHS = 100
+BATCH_SIZE = 12
+EPOCHS = 130
 
 # define the path to the base output directory
 BASE_OUTPUT = "output"

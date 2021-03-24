@@ -116,5 +116,6 @@ class Rand_Augment():
 
 def preprocessing_function(image):
     randaugment = Rand_Augment(Numbers=HOW_MANY_TO_AUGMENT)
+    image = Image.fromarray(image.astype(np.uint8))
     image = np.array(randaugment(image))
-    return image.astype(tf.float32)
+    return image.astype(np.float32)

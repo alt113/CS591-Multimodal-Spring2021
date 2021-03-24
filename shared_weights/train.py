@@ -8,7 +8,7 @@
     *Note: User has to be in the CWD of the train.py script.
 """
 # import the necessary packages
-from data.data_tf import sample_generator, map_class_labels, normalize_image
+from data.data_tf import fat_dataset
 from shared_weights.helpers.siamese_network import create_encoder
 from shared_weights.helpers import metrics, config, utils
 
@@ -16,74 +16,72 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Lambda
+from tensorflow.keras.layers import Dense
 
-input_shape = [128, 128, 3]
-batch_size = 16
+# load FAT dataset
+print("[INFO] loading FAT dataset pairs...")
+train_ds = fat_dataset(split='train',
+                       data_type='rgb',
+                       batch_size=config.BATCH_SIZE,
+                       shuffle=True,
+                       pairs=True)
 
-# load FAT dataset and scale the pixel values of RGB to the range of [0, 1]
-print("[INFO] loading FAT dataset...")
-train_ds = tf.data.Dataset.from_generator(
-    sample_generator(split='train'),
-    (tf.int32, tf.int32, tf.string),
-    (input_shape, input_shape, [])
-)
-
-val_ds = tf.data.Dataset.from_generator(
-    sample_generator(split='val'),
-    (tf.int32, tf.int32, tf.string),
-    (input_shape, input_shape, [])
-)
-
-test_ds = tf.data.Dataset.from_generator(
-    sample_generator(split='test'),
-    (tf.int32, tf.int32, tf.string),
-    (input_shape, input_shape, [])
-)
-
-train_ds = train_ds.map(map_class_labels)
-train_ds = train_ds.map(normalize_image)
-train_ds = train_ds.batch(batch_size=batch_size)
-
-val_ds = val_ds.map(map_class_labels)
-val_ds = val_ds.map(normalize_image)
-val_ds = val_ds.batch(batch_size=batch_size)
-
-test_ds = test_ds.map(map_class_labels)
-test_ds = test_ds.map(normalize_image)
-test_ds = test_ds.batch(batch_size=batch_size)
-
-
-# prepare the positive and negative pairs
-print("[INFO] preparing positive and negative pairs...")
-(pairTrain, labelTrain) = utils.make_pairs(trainX, trainY)
-(pairTest, labelTest) = utils.make_pairs(testX, testY)
+val_ds = fat_dataset(split='val',
+                     data_type='rgb',
+                     batch_size=config.BATCH_SIZE,
+                     shuffle=True,
+                     pairs=True)
 
 # configure the siamese network
 print("[INFO] building siamese network...")
 imgA = Input(shape=config.IMG_SHAPE)
 imgB = Input(shape=config.IMG_SHAPE)
-featureExtractor = create_encoder()
+featureExtractor = create_encoder(base='resnet50')
 featsA = featureExtractor(imgA)
 featsB = featureExtractor(imgB)
 
 # finally, construct the siamese network
 distance = Lambda(utils.euclidean_distance)([featsA, featsB])
-model = Model(inputs=[imgA, imgB], outputs=distance)
+outputs = Dense(1, activation="sigmoid")(distance)
+model = Model(inputs=[imgA, imgB], outputs=outputs)
 
 # compile the model
 print("[INFO] compiling model...")
-model.compile(loss=metrics.contrastive_loss, optimizer="adam")
+opt = tf.keras.optimizers.Adam(learning_rate=0.001)
+model.compile(loss=metrics.contrastive_loss,
+              optimizer="adam",
+              metrics=['binary_accuracy', 'accuracy'])
 
 # train the model
-print("[INFO] training model...")
-history = model.fit([pairTrain[:, 0], pairTrain[:, 1]], labelTrain[:],
-                    validation_data=([pairTest[:, 0], pairTest[:, 1]], labelTest[:]),
-                    batch_size=config.BATCH_SIZE,
-                    epochs=config.EPOCHS)
+print("[INFO] training encoder...")
+counter = 0
+history = None
+while counter <= config.EPOCHS:
+    counter += 1
+    print(f'* Epoch: {counter}')
+    data_batch = 0
+    for data, labels in train_ds:
+        data_batch += 1
+        history = model.train_on_batch(x=[data[:, 0], data[:, 1]],
+                                       y=labels[:],
+                                       reset_metrics=False,
+                                       return_dict=True)
+        print(f'* Data Batch: {data_batch}')
+        print(f'\t{history}')
 
-# serialize the model to disk
-print("[INFO] saving siamese model...")
-model.save(config.MODEL_PATH)
+    if counter % 10 == 0:
+        for val_data, val_labels in val_ds:
+            print("[VALUE] Testing model on batch")
+            print(model.test_on_batch(x=[val_data[:, 0], val_data[:, 1]], y=val_labels[:]))
+
+
+# serialize model to JSON
+model_json = model.to_json()
+with open(config.MODEL_PATH, "w") as json_file:
+    json_file.write(model_json)
+# serialize weights to HDF5
+model.save_weights("contrastive_model_weights.h5")
+print("Saved model to disk")
 
 # plot the training history
 print("[INFO] plotting training history...")

@@ -42,13 +42,12 @@ def augment_image_single(image, label):
 
     # Create generator and fit it to an image
     img_gen = tf.keras.preprocessing.image.ImageDataGenerator(
-        rescale=1./255,
         preprocessing_function=preprocessing_function
     )
     img_gen.fit(image)
 
     # We want to keep original image and label
-    img_results = [(image / 255.).astype(np.float32)]
+    img_results = [image.astype(np.float32)]
     label_results = [label]
 
     # Perform augmentation and keep the labels
@@ -66,7 +65,7 @@ def py_augment(image, label):
     """
     In order to use RandAugment inside tf.data.Dataset we must declare a numpy_function
     """
-    func = tf.numpy_function(augment_image_single, [image, label], [tf.float32, tf.string])
+    func = tf.numpy_function(augment_image_single, [image, label], [tf.float32, tf.int32])
     return func
 
 
@@ -208,17 +207,18 @@ def fat_dataset(split='train', data_type='all', batch_size=12, shuffle=False, pa
         inp=[r, d, b, l, data_type, pairs],
         Tout=[tf.int32, tf.int32]
     ))
-    ds = ds.map(normalize_image)
 
     if data_type != 'all':
-        ds = ds.map(py_augment).unbatch()
+        if not pairs:
+            ds = ds.map(py_augment).unbatch()
+        ds = ds.map(normalize_image)
     return ds
 
 
 if __name__ == '__main__':
     data_type = 'rgb'
     BATCH_SIZE = 12
-    pairs = True
+    pairs = False
     ds = fat_dataset(data_type=data_type, batch_size=BATCH_SIZE, shuffle=True, pairs=pairs)
     start = time.time()
     for data, labels in ds.take(1):

@@ -59,8 +59,8 @@ def plot_training(H, path_to_plot):
     # construct a plot that plots and saves the training history
     plt.style.use("ggplot")
     plt.figure()
-    plt.plot(H.history["loss"], label="train_loss")
-    plt.plot(H.history["val_loss"], label="val_loss")
+    plt.plot(H["accuracy"], label="accuracy")
+    plt.plot(H["val_loss"], label="val_loss")
     plt.title("Training Loss")
     plt.xlabel("Epoch #")
     plt.ylabel("Loss")
