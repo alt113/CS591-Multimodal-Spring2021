@@ -1,4 +1,6 @@
 from data.data_tf import fat_dataset
+from shared_weights.helpers import config
+from shared_weights.helpers.siamese_network import create_encoder, create_classifier
 
 import tensorflow as tf
 import tensorflow_addons as tfa
@@ -6,20 +8,23 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 """ Constants and Hyperparameters """
-input_shape = [128, 128, 3]
 learning_rate = 0.001
-batch_size = 16
-hidden_units = 512
-projection_units = 128
-num_epochs = 50
-dropout_rate = 0.5
 temperature = 0.05
-num_classes = 21
 
 """ Data Preparation Section"""
-# Load the train and test data splits
-train_ds_rgb = fat_dataset(split='train', data_type='rgb')
-test_ds_rgb = fat_dataset(split='test', data_type='rgb')
+# load FAT dataset
+print("[INFO] loading FAT dataset pairs...")
+train_ds = fat_dataset(split='train',
+                       data_type='rgb',
+                       batch_size=config.BATCH_SIZE,
+                       shuffle=True,
+                       pairs=False)
+
+test_ds = fat_dataset(split='test',
+                      data_type='rgb',
+                      batch_size=config.BATCH_SIZE,
+                      shuffle=True,
+                      pairs=False)
 
 """# Data Augmentation"""
 
@@ -34,46 +39,20 @@ data_augmentation = keras.Sequential(
 )
 
 """# Build the encoder model"""
-def create_encoder():
-    resnet = keras.applications.ResNet50V2(
-        include_top=False, weights=None, input_shape=tuple(input_shape), pooling="avg"
-    )
+encoder = create_encoder(base='resnet50')
+inputs = keras.Input(shape=config.IMG_SHAPE)
+augmented = data_augmentation(inputs)
+outputs = encoder(augmented)
+model = keras.Model(inputs=inputs, outputs=outputs, name="rgb_encoder")
 
-    inputs = keras.Input(shape=tuple(input_shape))
-    augmented = data_augmentation(inputs)
-    outputs = resnet(augmented)
-    model = keras.Model(inputs=inputs, outputs=outputs, name="simplenet-encoder")
-    return model
+print(model.summary())
 
 
-encoder = create_encoder()
-print(encoder.summary())
+""" Supervised contrastive learning loss function """
 
 
-"""# Build the classification model"""
-def create_classifier(encoder, trainable=False):
-
-    for layer in encoder.layers:
-        layer.trainable = trainable
-
-    inputs = keras.Input(shape=tuple(input_shape))
-    features = encoder(inputs)
-    features = layers.Dropout(dropout_rate)(features)
-    features = layers.Dense(hidden_units, activation="relu")(features)
-    features = layers.Dropout(dropout_rate)(features)
-    outputs = layers.Dense(num_classes, activation="softmax")(features)
-
-    model = keras.Model(inputs=inputs, outputs=outputs, name="cifar10-classifier")
-    model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate),
-        loss=keras.losses.SparseCategoricalCrossentropy(),
-        metrics=[keras.metrics.SparseCategoricalAccuracy()],
-    )
-    return model
-
-"""# Supervised contrastive learning loss function"""
 class SupervisedContrastiveLoss(keras.losses.Loss):
-    def __init__(self, temperature=1, name=None):
+    def __init__(self, temperature=1., name=None):
         super(SupervisedContrastiveLoss, self).__init__(name=name)
         self.temperature = temperature
 
@@ -91,18 +70,17 @@ class SupervisedContrastiveLoss(keras.losses.Loss):
 
 
 def add_projection_head(encoder):
-    inputs = keras.Input(shape=tuple(input_shape))
+    inputs = keras.Input(shape=config.IMG_SHAPE)
     features = encoder(inputs)
-    outputs = layers.Dense(projection_units, activation="relu")(features)
+    outputs = layers.Dense(config.PROJECTION_UNITS, activation="relu")(features)
     model = keras.Model(
         inputs=inputs, outputs=outputs, name="simplenet-encoder_with_projection-head"
     )
     return model
 
-"""# Pretrain the encoder"""
-encoder = create_encoder()
 
-encoder_with_projection_head = add_projection_head(encoder)
+""" Pretrain the encoder"""
+encoder_with_projection_head = add_projection_head(model)
 encoder_with_projection_head.compile(
     optimizer=keras.optimizers.Adam(learning_rate),
     loss=SupervisedContrastiveLoss(temperature),
@@ -110,15 +88,58 @@ encoder_with_projection_head.compile(
 
 print(encoder_with_projection_head.summary())
 
-history = encoder_with_projection_head.fit(
-    x=train_ds, y=y_train, batch_size=batch_size, epochs=num_epochs
-)
+print("[INFO] training encoder...")
+counter = 0
+history = None
+while counter <= config.EPOCHS:
+    counter += 1
+    print(f'* Epoch: {counter}')
+    data_batch = 0
+    for data, labels in train_ds:
+        data_batch += 1
+        history = encoder_with_projection_head.train_on_batch(x=data[:],
+                                                              y=labels[:],
+                                                              reset_metrics=False,
+                                                              return_dict=True)
+        print(f'* Data Batch: {data_batch}')
+        print(f'\t{history}')
 
-"""# Train the classifier with the frozen encoder"""
+    if counter % 10 == 0:
+        for val_data, val_labels in test_ds:
+            print("[VALUE] Testing model on batch")
+            print(encoder_with_projection_head.test_on_batch(x=val_data[:], y=val_labels[:]))
 
-classifier = create_classifier(encoder, trainable=False)
 
-history = classifier.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=num_epochs)
+# serialize model to JSON
+model_json = model.to_json()
+with open(config.RGB_MODALITY_PATH, "w") as json_file:
+    json_file.write(model_json)
+# serialize weights to HDF5
+model.save_weights("rgb_modality_model_weights.h5")
+print("Saved model to disk")
 
-accuracy = classifier.evaluate(x_test, y_test)[1]
-print(f"Test accuracy: {round(accuracy * 100, 2)}%")
+# TODO - do we want to train classifier heads separately as well or together?
+# """ Train the classifier with the frozen encoder """
+#
+# classifier = create_classifier(model, trainable_base=False)
+#
+# print("[INFO] training classifier head...")
+# counter = 0
+# history = None
+# while counter <= config.EPOCHS:
+#     counter += 1
+#     print(f'* Epoch: {counter}')
+#     data_batch = 0
+#     for data, labels in train_ds:
+#         data_batch += 1
+#         history = classifier.train_on_batch(x=data[:],
+#                                             y=labels[:],
+#                                             reset_metrics=False,
+#                                             return_dict=True)
+#         print(f'* Data Batch: {data_batch}')
+#         print(f'\t{history}')
+#
+#     if counter % 10 == 0:
+#         for val_data, val_labels in test_ds:
+#             print("[VALUE] Testing model on batch")
+#             print(classifier.test_on_batch(x=val_data[:], y=val_labels[:]))

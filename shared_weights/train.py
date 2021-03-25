@@ -47,9 +47,12 @@ model = Model(inputs=[imgA, imgB], outputs=outputs)
 
 # compile the model
 print("[INFO] compiling model...")
+
 opt = tf.keras.optimizers.Adam(learning_rate=0.001)
-model.compile(loss=metrics.contrastive_loss,
-              optimizer="adam",
+loss_option = ['binary_crossentropy', metrics.contrastive_loss]
+
+model.compile(loss=loss_option[1],
+              optimizer=opt,
               metrics=['binary_accuracy', 'accuracy'])
 
 # train the model
