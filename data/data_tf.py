@@ -7,6 +7,8 @@ from PIL import Image
 import orjson
 import time
 
+import matplotlib.pyplot as plt
+
 data_path = '/projectnb/cs591-mm-ml/prichter/single'
 
 map_labels_dict = {
@@ -32,6 +34,8 @@ map_labels_dict = {
     '052_extra_large_clamp_16k': 19,
     '061_foam_brick_16k': 20,
 }
+depth_max = np.ones((128, 128)) * 65536
+depth_zeros = np.zeros((128, 128))
 
 
 def normalize_image(images, label):
@@ -79,11 +83,13 @@ def load_rgb_image(data_path, box, label):
 def load_depth_image(data_path, box, label):
     image = Image.open(data_path).crop(box)
     image = image.resize((128, 128))
-    image = tf.cast(np.array(image), tf.int32)
-    image = image * 256 / 65536
-    image = tf.expand_dims(image, -1)
-    image = tf.broadcast_to(image, (128, 128, 3))
-    image = tf.cast(np.array(image), tf.int32)
+    image = np.array(image)
+    ratio = 2 * (image) / (depth_max)
+    red = np.max((depth_zeros, 255 * (ratio - 1)), axis=0)
+    blue = np.max((depth_zeros, 255 * (1 - ratio)), axis = 0)
+    green = 255 - blue - red
+    image = np.transpose([red, green, blue], (1, 2, 0))
+    image = tf.cast(image, tf.int32)
     return (image, label)
 
 
@@ -141,8 +147,6 @@ def sample_generator(split='train', data_type='all', batch_size=12, shuffle=Fals
             boxes = []
             labels = []
             count = 0
-    if count > 0:
-        yield (rgb_paths, depth_paths, boxes, labels)
 
 
 def get_pairs(rgb_paths, depth_paths, boxes, labels, data_type, pairs):
@@ -216,7 +220,7 @@ def fat_dataset(split='train', data_type='all', batch_size=12, shuffle=False, pa
 
 
 if __name__ == '__main__':
-    data_type = 'rgb'
+    data_type = 'depth'
     BATCH_SIZE = 12
     pairs = False
     ds = fat_dataset(data_type=data_type, batch_size=BATCH_SIZE, shuffle=True, pairs=pairs)
