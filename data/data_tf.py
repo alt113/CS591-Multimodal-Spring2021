@@ -147,8 +147,6 @@ def sample_generator(split='train', data_type='all', batch_size=12, shuffle=Fals
             boxes = []
             labels = []
             count = 0
-    if count > 0:
-        yield (rgb_paths, depth_paths, boxes, labels)
 
 
 def get_pairs(rgb_paths, depth_paths, boxes, labels, data_type, pairs):
