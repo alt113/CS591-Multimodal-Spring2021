@@ -14,20 +14,18 @@ are the results that we achieve along with the configuration settings for our Si
 | ResNet50<sup>*</sup>| Contrastive Loss| X%                |
 | ResNet101           | BCE             | X%                |
 | ResNet101           | Contrastive Loss| X%                |
-| ResNet152           | BCE             | X%                |
-| ResNet152           | Contrastive Loss| X%                |
 | VGG16               | BCE             | X%                |
 | VGG16               | Contrastive Loss| X%                |
 | VGG19               | BCE             | X%                |
 | VGG19               | Contrastive Loss| X%                |
 
 
-In each of the above configurations we used the following encoder pretraining hyperparameters:
+In each of the above configurations we used the following encoder pre-training hyperparameters:
 
 - Adam Optimizer
 - Batch Size of 64
 - Fixed learning rates of 0.001
-- Trained for 130 epochs
+- Run for 50 epochs
 
 ---
 <sup>*</sup> Paper 1 benchmark
