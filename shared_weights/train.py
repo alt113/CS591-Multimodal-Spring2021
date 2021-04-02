@@ -28,7 +28,7 @@ train_ds = fat_dataset(split='train',
 
 val_ds = fat_dataset(split='val',
                      data_type='rgb',
-                     batch_size=config.BATCH_SIZE,
+                     batch_size=12,
                      shuffle=True,
                      pairs=True)
 
@@ -36,7 +36,7 @@ val_ds = fat_dataset(split='val',
 print("[INFO] building siamese network...")
 imgA = Input(shape=config.IMG_SHAPE)
 imgB = Input(shape=config.IMG_SHAPE)
-featureExtractor = create_encoder(base='resnet50')
+featureExtractor = create_encoder(base='vgg19', pretrained=False)
 featsA = featureExtractor(imgA)
 featsB = featureExtractor(imgB)
 
@@ -77,18 +77,17 @@ while counter <= config.EPOCHS:
             print("[VALUE] Testing model on batch")
             print(model.test_on_batch(x=[val_data[:, 0], val_data[:, 1]], y=val_labels[:]))
 
-
 # serialize model to JSON
 model_json = model.to_json()
 with open(config.MODEL_PATH, "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-model.save_weights("contrastive_model_weights.h5")
-print("Saved model to disk")
+model.save_weights(config.WEIGHT_PATH)
+print("Saved encoder model to disk")
 
 # plot the training history
-print("[INFO] plotting training history...")
-utils.plot_training(history, config.PLOT_PATH)
+print("[INFO] saving training history as CSV...")
+utils.save_model_history(history, config.SIAMESE_TRAINING_HISTORY_CSV_PATH)
 
 ################################################################
 # the following code is to make predictions with a trained model

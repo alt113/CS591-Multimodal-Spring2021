@@ -3,6 +3,7 @@
     inside of a CNN, and a training history plotting function
 """
 # import the necessary packages
+import csv
 import tensorflow.keras.backend as K
 import matplotlib.pyplot as plt
 import numpy as np
@@ -66,3 +67,10 @@ def plot_training(H, path_to_plot):
     plt.ylabel("Loss")
     plt.legend(loc="lower left")
     plt.savefig(path_to_plot)
+
+
+def save_model_history(H, path_to_csv):
+    # save model history dictionary as CSV
+    with open(path_to_csv, 'w') as f:
+        for key in H.keys():
+            f.write("%s,%s\n" % (key, H[key]))
