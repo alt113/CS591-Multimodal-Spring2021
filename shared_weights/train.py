@@ -9,7 +9,7 @@
 """
 # import the necessary packages
 from data.data_tf import fat_dataset
-from shared_weights.helpers.siamese_network import create_encoder
+from shared_weights.helpers.siamese_network import create_encoder, create_classifier
 from shared_weights.helpers import metrics, config, utils
 
 import tensorflow as tf
@@ -17,6 +17,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Lambda
 from tensorflow.keras.layers import Dense
+from tensorflow.keras.models import model_from_json
 
 # load FAT dataset
 print("[INFO] loading FAT dataset pairs...")
@@ -73,8 +74,8 @@ while counter <= config.EPOCHS:
         print(f'\t{history}')
 
     if counter % 10 == 0:
+        print("[VALUE] Testing model on batch")
         for val_data, val_labels in val_ds:
-            print("[VALUE] Testing model on batch")
             print(model.test_on_batch(x=[val_data[:, 0], val_data[:, 1]], y=val_labels[:]))
 
 # serialize model to JSON
@@ -85,23 +86,114 @@ with open(config.MODEL_PATH, "w") as json_file:
 model.save_weights(config.WEIGHT_PATH)
 print("Saved encoder model to disk")
 
-# plot the training history
-print("[INFO] saving training history as CSV...")
-utils.save_model_history(history, config.SIAMESE_TRAINING_HISTORY_CSV_PATH)
+##############################################################
+# load pre-trained encoder and fine tune classification head #
+##############################################################
+# load json and create model (python must be version 3.7.7)
+# path_to_encoder = os.environ['PYTHONPATH'].split(os.pathsep)[1]
+# json_file = open(path_to_encoder + '/shared_weights/pre_trained_encoders/models/contrastive_resnet50_scratch.json', 'r')
+# loaded_model_json = json_file.read()
+# json_file.close()
+# pretrained_encoder = model_from_json(loaded_model_json)
 
-################################################################
-# the following code is to make predictions with a trained model
-################################################################
-# # add channel a dimension to both the images
-# imageA = np.expand_dims(imageA, axis=-1)
-# imageB = np.expand_dims(imageB, axis=-1)
-# # add a batch dimension to both images
-# imageA = np.expand_dims(imageA, axis=0)
-# imageB = np.expand_dims(imageB, axis=0)
-# # scale the pixel values to the range of [0, 1]
-# imageA = imageA / 255.0
-# imageB = imageB / 255.0
-# # use our siamese model to make predictions on the image pair,
-# # indicating whether or not the images belong to the same class
-# preds = model.predict([imageA, imageB])
-# proba = preds[0][0]
+imgA = Input(shape=config.IMG_SHAPE)
+imgB = Input(shape=config.IMG_SHAPE)
+featureExtractor = create_encoder(base='resnet50', pretrained=False)
+featsA = featureExtractor(imgA)
+featsB = featureExtractor(imgB)
+
+# finally, construct the siamese network
+distance = Lambda(utils.euclidean_distance)([featsA, featsB])
+outputs = Dense(1, activation="sigmoid")(distance)
+pretrained_encoder = Model(inputs=[imgA, imgB], outputs=outputs)
+
+
+# load weights into new model
+pretrained_encoder.load_weights(config.WEIGHT_PATH)
+pretrained_encoder._layers.pop()
+pretrained_encoder._layers.pop()
+
+print("Loaded pre-trained encoder from disk")
+
+# first train the classification head with a high learning rate
+fine_tuned_classifier = create_classifier(encoder=pretrained_encoder,
+                                          trainable_base=False,
+                                          lr=0.001)
+
+print('Classification Model')
+print(fine_tuned_classifier.summary())
+
+# train the model
+print("[INFO] training classifier head (frozen base)...")
+counter = 0
+history = None
+toCSV = []
+while counter <= 10:
+    counter += 1
+    print(f'* Epoch: {counter}')
+    data_batch = 0
+    for data, labels in train_ds:
+        data_batch += 1
+        history = fine_tuned_classifier.train_on_batch(x=[data[:, 0], data[:, 1]],
+                                                       y=labels[:],
+                                                       reset_metrics=False,
+                                                       return_dict=True)
+        print(f'* Data Batch: {data_batch}')
+        print(f'\t{history}')
+
+    if counter % 10 == 0:
+        print("[VALUE] Testing model on batch")
+        for val_data, val_labels in val_ds:
+            val_results = fine_tuned_classifier.test_on_batch(x=[val_data[:, 0], val_data[:, 1]], y=val_labels[:])
+            print(val_results)
+            toCSV.append(val_results)
+
+print('Saving frozen base encoder validation results as CSV file')
+utils.save_model_history(H=toCSV, path_to_csv=config.FROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH)
+
+print('Switching model weights to allow fine tuning of encoder base')
+unfrozen_encoder_base = create_classifier(encoder=pretrained_encoder,
+                                          trainable_base=True,
+                                          lr=1e-5)
+
+unfrozen_encoder_base.set_weights(fine_tuned_classifier.get_weights())
+
+# clear memory of previous model(s)
+del fine_tuned_classifier
+del pretrained_encoder
+
+# train the model
+print("[INFO] training classifier head (unfrozen base)...")
+counter = 0
+history = None
+toCSV = []
+while counter <= 10:
+    counter += 1
+    print(f'* Epoch: {counter}')
+    data_batch = 0
+    for data, labels in train_ds:
+        data_batch += 1
+        history = unfrozen_encoder_base.train_on_batch(x=[data[:, 0], data[:, 1]],
+                                                       y=labels[:],
+                                                       reset_metrics=False,
+                                                       return_dict=True)
+        print(f'* Data Batch: {data_batch}')
+        print(f'\t{history}')
+
+    if counter % 10 == 0:
+        print("[VALUE] Testing model on batch")
+        for val_data, val_labels in val_ds:
+            val_results = unfrozen_encoder_base.test_on_batch(x=[val_data[:, 0], val_data[:, 1]], y=val_labels[:])
+            print(val_results)
+            toCSV.append(val_results)
+
+print('Saving un-frozen base classifier validation results as CSV file')
+utils.save_model_history(H=toCSV, path_to_csv=config.UNFROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH)
+
+# serialize model to JSON
+model_json = unfrozen_encoder_base.to_json()
+with open(config.FINE_TUNED_CLASSIFICATION_MODEL, "w") as json_file:
+    json_file.write(model_json)
+# serialize weights to HDF5
+unfrozen_encoder_base.save_weights(config.FINE_TUNED_CLASSIFICATION_WEIGHTS)
+print("Saved classification model to disk")

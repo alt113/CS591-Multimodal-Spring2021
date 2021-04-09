@@ -1,6 +1,7 @@
 from data.data_tf import fat_dataset
 from shared_weights.helpers import config
 from shared_weights.helpers.siamese_network import create_encoder
+from shared_weights.helpers.validation_callback import ValidationSinglesAccuracyScore
 
 import tensorflow as tf
 import tensorflow_addons as tfa
@@ -10,48 +11,32 @@ import matplotlib.pyplot as plt
 
 """ Prepare the data"""
 # load FAT dataset
-print("[INFO] loading FAT dataset pairs...")
+print("[INFO] loading FAT dataset...")
 train_ds = fat_dataset(split='train',
                        data_type='rgb',
                        batch_size=config.BATCH_SIZE,
                        shuffle=True,
                        pairs=False)
 
-test_ds = fat_dataset(split='test',
-                      data_type='rgb',
-                      batch_size=config.BATCH_SIZE,
-                      shuffle=True,
-                      pairs=False)
-
-""" Define hyperparameters"""
-
-target_size = 32  # Resize the input images.
-
-"""# Implement data preprocessing"""
-
-data_preprocessing = keras.Sequential(
-    [
-        layers.experimental.preprocessing.Resizing(target_size, target_size),
-        layers.experimental.preprocessing.Normalization(),
-    ]
-)
+# test_ds = fat_dataset(split='test',
+#                       data_type='rgb',
+#                       batch_size=config.BATCH_SIZE,
+#                       shuffle=True,
+#                       pairs=False)
 
 """ Data augmentation"""
-
-data_augmentation = keras.Sequential(
-    [
-        layers.experimental.preprocessing.RandomTranslation(
-            height_factor=(-0.2, 0.2), width_factor=(-0.2, 0.2), fill_mode="nearest"
-        ),
-        layers.experimental.preprocessing.RandomFlip(mode="horizontal"),
-        layers.experimental.preprocessing.RandomRotation(
-            factor=0.15, fill_mode="nearest"
-        ),
-        layers.experimental.preprocessing.RandomZoom(
-            height_factor=(-0.3, 0.1), width_factor=(-0.3, 0.1), fill_mode="nearest"
-        )
-    ]
-)
+data_augmentation = layers.Input(shape=config.IMG_SHAPE)
+data_augmentation = layers.experimental.preprocessing.RandomTranslation(
+    height_factor=(-0.2, 0.2),
+    width_factor=(-0.2, 0.2),
+    fill_mode="constant"
+)(data_augmentation)
+data_augmentation = layers.experimental.preprocessing.RandomFlip(mode="horizontal")(data_augmentation)
+data_augmentation = layers.experimental.preprocessing.RandomRotation(factor=0.15,
+                                                                     fill_mode="constant")(data_augmentation)
+data_augmentation = layers.experimental.preprocessing.RandomZoom(height_factor=(-0.3, 0.1),
+                                                                 width_factor=(-0.3, 0.1),
+                                                                 fill_mode="constant")(data_augmentation)
 
 """ Unsupervised contrastive loss"""
 
@@ -109,12 +94,10 @@ class RepresentationLearner(keras.Model):
         )
 
     def call(self, inputs):
-        # Preprocess the input images.
-        preprocessed = data_preprocessing(inputs)
         # Create augmented versions of the images.
         augmented = []
         for _ in range(self.num_augmentations):
-            augmented.append(data_augmentation(preprocessed))
+            augmented.append(data_augmentation(inputs))
         augmented = layers.Concatenate(axis=0)(augmented)
         # Generate embedding representations of the images.
         features = self.encoder(augmented)
@@ -147,7 +130,8 @@ class RepresentationLearner(keras.Model):
 
 """ Train the model"""
 # Create vision encoder.
-encoder = create_encoder(base='resnet50')
+network_input = tf.keras.layers.Input(shape=config.IMG_SHAPE)
+encoder = create_encoder(base='resnet50', pretrained=False)(network_input)
 encoder = tf.keras.layers.Dense(config.HIDDEN_UNITS)(encoder)
 # Create representation learner.
 representation_learner = RepresentationLearner(
@@ -160,39 +144,49 @@ lr_scheduler = keras.experimental.CosineDecay(
 # Compile the model.
 representation_learner.compile(
     optimizer=tfa.optimizers.AdamW(learning_rate=lr_scheduler, weight_decay=0.0001),
+    metrics=['accuracy']
 )
 
 # Fit the model
 print("[INFO] training encoder...")
-counter = 0
-history = None
-while counter <= config.EPOCHS:
-    counter += 1
-    print(f'* Epoch: {counter}')
-    data_batch = 0
-    for data, labels in train_ds:
-        data_batch += 1
-        history = representation_learner.train_on_batch(x=data[:],
-                                                        y=labels[:],
-                                                        reset_metrics=False,
-                                                        return_dict=True)
-        print(f'* Data Batch: {data_batch}')
-        print(f'\t{history}')
+# counter = 0
+# history = None
+# while counter <= config.EPOCHS:
+#     counter += 1
+#     print(f'* Epoch: {counter}')
+#     data_batch = 0
+#     for data, labels in train_ds:
+#         data_batch += 1
+#         history = representation_learner.train_on_batch(x=data[:],
+#                                                         y=labels[:],
+#                                                         reset_metrics=False,
+#                                                         return_dict=True)
+#         print(f'* Data Batch: {data_batch}')
+#         print(f'\t{history}')
+#
+#     if counter % 10 == 0:
+#         for val_data, val_labels in test_ds:
+#             print("[VALUE] Testing model on batch")
+#             print(representation_learner.test_on_batch(x=val_data[:], y=val_labels[:]))
 
-    if counter % 10 == 0:
-        for val_data, val_labels in test_ds:
-            print("[VALUE] Testing model on batch")
-            print(representation_learner.test_on_batch(x=val_data[:], y=val_labels[:]))
-
-# history = representation_learner.fit(
-#     x=x_data,
-#     batch_size=512,
-#     epochs=50,  # for better results, increase the number of epochs to 500.
-# )
+history = representation_learner.fit(
+    x=train_ds,
+    batch_size=config.BATCH_SIZE,
+    epochs=50,  # for better results, increase the number of epochs to 500.
+    callbacks=[ValidationSinglesAccuracyScore()]
+)
 
 """ Plot training loss"""
-#
-# plt.plot(history.history["loss"])
-# plt.ylabel("loss")
-# plt.xlabel("epoch")
-# plt.show()
+
+plt.plot(history.history["loss"])
+plt.ylabel("loss")
+plt.xlabel("epoch")
+plt.savefig(config.SINGLE_MODALITY_TRAINING_LOSS_PLOT)
+
+# serialize model to JSON
+model_json = representation_learner.to_json()
+with open(config.SINGLE_MODALITY_MODEL_PATH, "w") as json_file:
+    json_file.write(model_json)
+# serialize weights to HDF5
+representation_learner.save_weights(config.SINGLE_MODALITY_WEIGHT_PATH)
+print("Saved encoder model to disk")

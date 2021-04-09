@@ -9,19 +9,13 @@ for each network to learn proper feature representations prior to training them 
 task. The following are some self-supervised strategies we aim to implement and try out:
 
 - Self-Supervised training as presented in Paper 1
-- Supervised SimCLR on each separate network
-- Unsupervised SimCLR on each separate network
+- Unsupervised simCLR on each separate network
 - Unsupervised Learning of Visual Features by Contrasting Cluster Assignments
-- Bootstrap Your Own Latent: A New Approach to Self-Supervised Learning
 
 We will also be experimenting with different base encoder neural network structures and try out all of the aforementioned 
 self-supervised pretraining strategies on them. The following is a list of network options we are considering:
 
-- LeNet-5
-- AlexNet
-- VGG (16 and 19)
-- Inception
-- ResNet(50<sup>*</sup>, 101, and 152)
+- ResNet50
 
 
 Any hyperparameter tuning we perform will be based off the [Keras Tuner](https://www.tensorflow.org/tutorials/keras/keras_tuner).
@@ -38,8 +32,6 @@ fine tuning.
 ##### Option 1 Results
 | RGB Encoder  | RGB SSL           | Depth Encoder|    Depth SSL      | Learning Rate       |Validation Accuracy |
 | -------------|:-----------------:| ------------:|------------------:|--------------------:|-------------------:|
-| ResNet50     | Supervised simCLR | ResNet50     |Supervised simCLR  |0.001 (fixed)        |         X%         |
 | ResNet50     |Unsupervised simCLR| ResNet50     |Unsupervised simCLR|0.001 (Cosine Decay) |         X%         |
 
 ---
-<sup>*</sup>ResNet50 is the baseline network architecture.

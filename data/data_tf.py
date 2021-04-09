@@ -1,4 +1,4 @@
-from multi_input_multi_output.rand_augment import preprocessing_function, HOW_MANY_TO_AUGMENT
+# from multi_input_multi_output.rand_augment import preprocessing_function, HOW_MANY_TO_AUGMENT
 import tensorflow as tf
 import numpy as np
 
@@ -6,8 +6,6 @@ import os
 from PIL import Image
 import orjson
 import time
-
-import matplotlib.pyplot as plt
 
 data_path = '/projectnb/cs591-mm-ml/prichter/single'
 
@@ -42,35 +40,35 @@ def normalize_image(images, label):
     return tf.cast(images, tf.float32) / 255., label
 
 
-def augment_image_single(image, label):
-
-    # Create generator and fit it to an image
-    img_gen = tf.keras.preprocessing.image.ImageDataGenerator(
-        preprocessing_function=preprocessing_function
-    )
-    img_gen.fit(image)
-
-    # We want to keep original image and label
-    img_results = [image.astype(np.float32)]
-    label_results = [label]
-
-    # Perform augmentation and keep the labels
-    augmented_images = [next(img_gen.flow(image)) for _ in range(HOW_MANY_TO_AUGMENT)]
-    labels = [label for _ in range(HOW_MANY_TO_AUGMENT)]
-
-    # Append augmented data and labels to original data
-    img_results.extend(augmented_images)
-    label_results.extend(labels)
-
-    return img_results, label_results
-
-
-def py_augment(image, label):
-    """
-    In order to use RandAugment inside tf.data.Dataset we must declare a numpy_function
-    """
-    func = tf.numpy_function(augment_image_single, [image, label], [tf.float32, tf.int32])
-    return func
+# def augment_image_single(image, label):
+#
+#     # Create generator and fit it to an image
+#     img_gen = tf.keras.preprocessing.image.ImageDataGenerator(
+#         preprocessing_function=preprocessing_function
+#     )
+#     img_gen.fit(image)
+#
+#     # We want to keep original image and label
+#     img_results = [image.astype(np.float32)]
+#     label_results = [label]
+#
+#     # Perform augmentation and keep the labels
+#     augmented_images = [next(img_gen.flow(image)) for _ in range(HOW_MANY_TO_AUGMENT)]
+#     labels = [label for _ in range(HOW_MANY_TO_AUGMENT)]
+#
+#     # Append augmented data and labels to original data
+#     img_results.extend(augmented_images)
+#     label_results.extend(labels)
+#
+#     return img_results, label_results
+#
+#
+# def py_augment(image, label):
+#     """
+#     In order to use RandAugment inside tf.data.Dataset we must declare a numpy_function
+#     """
+#     func = tf.numpy_function(augment_image_single, [image, label], [tf.float32, tf.float32])
+#     return func
 
 
 def load_rgb_image(data_path, box, label):
@@ -213,8 +211,8 @@ def fat_dataset(split='train', data_type='all', batch_size=12, shuffle=False, pa
     ))
 
     if data_type != 'all':
-        if not pairs:
-            ds = ds.map(py_augment).unbatch()
+        # if not pairs:
+        #     ds = ds.map(py_augment).unbatch()
         ds = ds.map(normalize_image)
     return ds
 
@@ -229,4 +227,3 @@ if __name__ == '__main__':
         print(data.shape)
         print(labels.shape)
         print(time.time() - start)
-

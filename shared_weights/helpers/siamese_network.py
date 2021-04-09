@@ -11,8 +11,6 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input
 
-learning_rate = 0.001
-
 
 def create_encoder(base='resnet50', pretrained=False):
     base_encoder = None
@@ -58,22 +56,27 @@ def create_encoder(base='resnet50', pretrained=False):
     return model
 
 
-def create_classifier(encoder, trainable_base=False):
+def create_classifier(encoder, trainable_base=False, lr=0.001):
 
     for layer in encoder.layers:
         layer.trainable = trainable_base
 
-    inputs = keras.Input(shape=config.IMG_SHAPE)
-    features = encoder(inputs)
-    features = layers.Dropout(config.DROPOUT_RATE)(features)
-    features = layers.Dense(config.HIDDEN_UNITS, activation="relu")(features)
-    features = layers.Dropout(config.DROPOUT_RATE)(features)
-    outputs = layers.Dense(config.NUM_OF_CLASSES, activation="softmax")(features)
+    encoder.add(layers.Dropout(config.DROPOUT_RATE))
+    encoder.add(layers.Dense(config.HIDDEN_UNITS, activation="relu"))
+    encoder.add(layers.Dropout(config.DROPOUT_RATE))
+    encoder.add(layers.Dense(config.NUM_OF_CLASSES, activation="softmax"))
 
-    model = keras.Model(inputs=inputs, outputs=outputs, name="classifier")
-    model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate),
+    # inputs = keras.Input(shape=config.IMG_SHAPE)
+    # features = encoder(inputs)
+    # features = layers.Dropout(config.DROPOUT_RATE)(features)
+    # features = layers.Dense(config.HIDDEN_UNITS, activation="relu")(features)
+    # features = layers.Dropout(config.DROPOUT_RATE)(features)
+    # outputs = layers.Dense(config.NUM_OF_CLASSES, activation="softmax")(features)
+    #
+    # model = keras.Model(inputs=inputs, outputs=outputs, name="classifier")
+    encoder.compile(
+        optimizer=keras.optimizers.Adam(lr),
         loss=keras.losses.CategoricalCrossentropy(),
         metrics=[keras.metrics.CategoricalAccuracy()],
     )
-    return model
+    return encoder

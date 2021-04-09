@@ -71,6 +71,8 @@ def plot_training(H, path_to_plot):
 
 def save_model_history(H, path_to_csv):
     # save model history dictionary as CSV
-    with open(path_to_csv, 'w') as f:
-        for key in H.keys():
-            f.write("%s,%s\n" % (key, H[key]))
+    keys = H[0].keys()
+    with open(path_to_csv, 'w', newline='') as output_file:
+        dict_writer = csv.DictWriter(output_file, keys)
+        dict_writer.writeheader()
+        dict_writer.writerows(H)

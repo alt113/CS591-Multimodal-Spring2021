@@ -6,7 +6,7 @@ import numpy as np
 
 singles_val_ds = fat_dataset(split='val',
                              data_type='rgb',
-                             batch_size=config.BATCH_SIZE,
+                             batch_size=12,
                              shuffle=True,
                              pairs=False)
 
