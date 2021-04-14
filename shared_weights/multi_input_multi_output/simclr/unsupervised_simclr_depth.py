@@ -219,8 +219,8 @@ while counter <= config.EPOCHS:
 
 # serialize model to JSON
 model_json = representation_learner.to_json()
-with open(config.RGB_MODALITY_MODEL_PATH, "w") as json_file:
+with open(config.DEPTH_MODALITY_MODEL_PATH, "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-representation_learner.save_weights(config.RGB_MODALITY_WEIGHT_PATH)
+representation_learner.save_weights(config.DEPTH_MODALITY_WEIGHT_PATH)
 print("Saved encoder model to disk")

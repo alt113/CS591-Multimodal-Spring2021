@@ -72,11 +72,11 @@ def create_classifier(encoder, trainable_base=False, lr=0.001):
     # features = layers.Dense(config.HIDDEN_UNITS, activation="relu")(features)
     # features = layers.Dropout(config.DROPOUT_RATE)(features)
     # outputs = layers.Dense(config.NUM_OF_CLASSES, activation="softmax")(features)
-    #
+    # 
     # model = keras.Model(inputs=inputs, outputs=outputs, name="classifier")
     encoder.compile(
         optimizer=keras.optimizers.Adam(lr),
-        loss=keras.losses.CategoricalCrossentropy(),
-        metrics=[keras.metrics.CategoricalAccuracy()],
+        loss=keras.losses.SparseCategoricalCrossentropy(),
+        metrics=[keras.metrics.SparseCategoricalCrossentropy()],
     )
     return encoder

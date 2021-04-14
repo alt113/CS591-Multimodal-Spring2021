@@ -94,7 +94,7 @@ from tensorflow.keras.models import model_from_json
 # opt = tf.keras.optimizers.Adam(learning_rate=0.001)
 # loss_option = ['binary_crossentropy', metrics.contrastive_loss]
 
-# model.compile(loss=loss_option[1],
+# model.compile(loss=loss_option[0],
 #               optimizer=opt,
 #               metrics=['binary_accuracy', 'accuracy'])
 
@@ -122,10 +122,10 @@ from tensorflow.keras.models import model_from_json
 
 # # serialize model to JSON
 # model_json = model.to_json()
-# with open(config.MODEL_PATH, "w") as json_file:
+# with open(config.BCE_MODEL_PATH, "w") as json_file:
 #     json_file.write(model_json)
 # # serialize weights to HDF5
-# model.save_weights(config.WEIGHT_PATH)
+# model.save_weights(config.BCE_WEIGHT_PATH)
 # print("Saved encoder model to disk")
 
 ##############################################################
@@ -150,8 +150,7 @@ outputs = Dense(1, activation="sigmoid")(distance)
 pretrained_encoder = Model(inputs=[imgA, imgB], outputs=outputs)
 
 # load weights into new model
-# pretrained_encoder.load_weights(path_to_encoder + '/shared_weights/pre_trained_encoders/weights/contrastive_resnet50_scratch_weights.h5')
-pretrained_encoder.load_weights(config.WEIGHT_PATH)
+pretrained_encoder.load_weights(config.BCE_WEIGHT_PATH)
 print("Loaded pre-trained encoder from disk")
 
 pretrained_encoder = Sequential(pretrained_encoder.layers[:-2])
@@ -203,8 +202,7 @@ while counter <= 10:
             toCSV.append(val_results)
 
 print('Saving frozen base encoder validation results as CSV file')
-# utils.save_model_history(H=toCSV, path_to_csv=path_to_encoder + '/shared_weights/pre_trained_encoders/frozen_history/frozen_cls_base.csv')
-utils.save_model_history(H=toCSV, path_to_csv=config.FROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH)
+utils.save_model_history(H=toCSV, path_to_csv=config.BCE_FROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH)
 
 print('Switching model weights to allow fine tuning of encoder base')
 unfrozen_encoder_base = create_classifier(encoder=pretrained_encoder,
@@ -243,15 +241,12 @@ while counter <= 10:
             toCSV.append(val_results)
 
 print('Saving un-frozen base classifier validation results as CSV file')
-# utils.save_model_history(H=toCSV, path_to_csv=path_to_encoder + '/shared_weights/pre_trained_encoders/unfrozen_history/unfrozen_cls_base.csv')
-utils.save_model_history(H=toCSV, path_to_csv=config.UNFROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH)
+utils.save_model_history(H=toCSV, path_to_csv=config.BCE_UNFROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH)
 
 # serialize model to JSON
 model_json = unfrozen_encoder_base.to_json()
-# with open(path_to_encoder + '/shared_weights/pre_trained_encoders/classifiers/cls.json', "w") as json_file:
-with open(config.FINE_TUNED_CLASSIFICATION_MODEL, "w") as json_file:
+with open(config.BCE_FINE_TUNED_CLASSIFICATION_MODEL, "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-# unfrozen_encoder_base.save_weights(path_to_encoder + '/shared_weights/pre_trained_encoders/classifier_weights/cls_weights.h5')
-unfrozen_encoder_base.save_weights(config.FINE_TUNED_CLASSIFICATION_WEIGHTS)
+unfrozen_encoder_base.save_weights(config.BCE_FINE_TUNED_CLASSIFICATION_WEIGHTS)
 print("Saved classification model to disk")
