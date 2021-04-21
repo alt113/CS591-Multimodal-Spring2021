@@ -14,6 +14,7 @@ import numpy as np
 
 CLS_RGB = 0.
 CLS_DEPTH = 0.
+RGBS_TURN = True
 
 
 def multi_input_multi_output_model(rgb_classifier, rgb_branch, depth_classifier, depth_branch):
@@ -96,38 +97,48 @@ class MultiNet(object):
 
             global CLS_RGB
             global CLS_DEPTH
+            global RGBS_TURN
 
             scce = keras.losses.SparseCategoricalCrossentropy()
 
-            y_true = y_true.numpy().T
-            y_pred = y_pred.numpy()
-            if CLS_RGB == 0.:
+            # y_true = y_true.numpy().T
+            # y_pred = y_pred.numpy()
+            if RGBS_TURN and CLS_RGB == 0.:
+                RGBS_TURN = False
                 CLS_RGB = scce(y_true, y_pred).numpy()
-
-            else:
+                return scce(y_true, y_pred)
+            elif not RGBS_TURN and CLS_DEPTH == 0.:
+                RGBS_TURN = True
                 CLS_DEPTH = scce(y_true, y_pred).numpy()
+                return scce(y_true, y_pred)
 
+            elif RGBS_TURN:
+                RGBS_TURN = False
                 delta_l_rgb = CLS_RGB - CLS_DEPTH
-                delta_l_depth = -delta_l_rgb
-
                 # check for RGB negative flow
                 if delta_l_rgb > 0:
                     ro_rgb = np.exp(2 * delta_l_rgb) - 1
                 else:
                     ro_rgb = 0
 
+                CLS_RGB = scce(y_true, y_pred).numpy()
+                return scce(y_true, y_pred) + 0.01 * ro_rgb * frob_norm_squared_rgb
+
+            else:
+                RGBS_TURN = True
+                delta_l_depth = CLS_DEPTH - CLS_RGB
                 # check for Depth negative flow
                 if delta_l_depth > 0:
                     ro_depth = np.exp(2 * delta_l_depth) - 1
                 else:
                     ro_depth = 0
 
-                return (CLS_RGB + 0.01 * ro_rgb * frob_norm_squared_rgb) + \
-                       (CLS_DEPTH + 0.01 * ro_depth * frob_norm_squared_depth)
+                CLS_DEPTH = scce(y_true, y_pred).numpy()
+                return scce(y_true, y_pred) + 0.01 * ro_depth * frob_norm_squared_depth
 
         return multinet_loss
 
     def compile(self):
-        self.model.compile(optimizer=self.optimizer, loss=self.loss_func)
+        self.model.compile(optimizer=self.optimizer, loss=self.loss_func, run_eagerly=True)
 
         print('Model Compiled!')

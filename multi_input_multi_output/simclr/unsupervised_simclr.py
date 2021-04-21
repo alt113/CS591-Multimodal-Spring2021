@@ -18,25 +18,26 @@ train_ds = fat_dataset(split='train',
                        shuffle=True,
                        pairs=False)
 
-# test_ds = fat_dataset(split='test',
-#                       data_type='rgb',
-#                       batch_size=config.BATCH_SIZE,
-#                       shuffle=True,
-#                       pairs=False)
+test_ds = fat_dataset(split='test',
+                      data_type='rgb',
+                      batch_size=config.BATCH_SIZE,
+                      shuffle=True,
+                      pairs=False)
 
 """ Data augmentation"""
-data_augmentation = layers.Input(shape=config.IMG_SHAPE)
+augmentation_input = layers.Input(shape=config.IMG_SHAPE)
 data_augmentation = layers.experimental.preprocessing.RandomTranslation(
     height_factor=(-0.2, 0.2),
     width_factor=(-0.2, 0.2),
     fill_mode="constant"
-)(data_augmentation)
+)(augmentation_input)
 data_augmentation = layers.experimental.preprocessing.RandomFlip(mode="horizontal")(data_augmentation)
 data_augmentation = layers.experimental.preprocessing.RandomRotation(factor=0.15,
                                                                      fill_mode="constant")(data_augmentation)
-data_augmentation = layers.experimental.preprocessing.RandomZoom(height_factor=(-0.3, 0.1),
+augmentation_output = layers.experimental.preprocessing.RandomZoom(height_factor=(-0.3, 0.1),
                                                                  width_factor=(-0.3, 0.1),
                                                                  fill_mode="constant")(data_augmentation)
+data_augmentation = keras.Model(augmentation_input, augmentation_output)
 
 """ Unsupervised contrastive loss"""
 
@@ -97,14 +98,16 @@ class RepresentationLearner(keras.Model):
         # Create augmented versions of the images.
         augmented = []
         for _ in range(self.num_augmentations):
-            augmented.append(data_augmentation(inputs))
+            x = data_augmentation(inputs)
+            augmented.append(x)
         augmented = layers.Concatenate(axis=0)(augmented)
         # Generate embedding representations of the images.
         features = self.encoder(augmented)
         # Apply projection head.
         return self.projector(features)
 
-    def train_step(self, inputs):
+    def train_step(self, data):#inputs):
+        inputs = data[0]
         batch_size = tf.shape(inputs)[0]
         # Run the forward pass and compute the contrastive loss
         with tf.GradientTape() as tape:
@@ -120,7 +123,8 @@ class RepresentationLearner(keras.Model):
         # Return a dict mapping metric names to current value
         return {m.name: m.result() for m in self.metrics}
 
-    def test_step(self, inputs):
+    def test_step(self, data):#inputs):
+        inputs = data[0]
         batch_size = tf.shape(inputs)[0]
         feature_vectors = self(inputs, training=False)
         loss = self.compute_contrastive_loss(feature_vectors, batch_size)
@@ -132,7 +136,8 @@ class RepresentationLearner(keras.Model):
 # Create vision encoder.
 network_input = tf.keras.layers.Input(shape=config.IMG_SHAPE)
 encoder = create_encoder(base='resnet50', pretrained=False)(network_input)
-encoder = tf.keras.layers.Dense(config.HIDDEN_UNITS)(encoder)
+encoder_output = tf.keras.layers.Dense(config.HIDDEN_UNITS)(encoder)
+encoder = keras.Model(network_input, encoder_output)
 # Create representation learner.
 representation_learner = RepresentationLearner(
     encoder, config.PROJECTION_UNITS, num_augmentations=2, temperature=0.1
@@ -149,44 +154,25 @@ representation_learner.compile(
 
 # Fit the model
 print("[INFO] training encoder...")
-# counter = 0
-# history = None
-# while counter <= config.EPOCHS:
-#     counter += 1
-#     print(f'* Epoch: {counter}')
-#     data_batch = 0
-#     for data, labels in train_ds:
-#         data_batch += 1
-#         history = representation_learner.train_on_batch(x=data[:],
-#                                                         y=labels[:],
-#                                                         reset_metrics=False,
-#                                                         return_dict=True)
-#         print(f'* Data Batch: {data_batch}')
-#         print(f'\t{history}')
-#
-#     if counter % 10 == 0:
-#         for val_data, val_labels in test_ds:
-#             print("[VALUE] Testing model on batch")
-#             print(representation_learner.test_on_batch(x=val_data[:], y=val_labels[:]))
+counter = 0
+history = None
+while counter <= config.EPOCHS:
+    counter += 1
+    print(f'* Epoch: {counter}')
+    data_batch = 0
+    for data, labels in train_ds:
+        data_batch += 1
+        history = representation_learner.train_on_batch(x=data[:],
+                                                        y=labels[:],
+                                                        reset_metrics=False,
+                                                        return_dict=True)
+        print(f'* Data Batch: {data_batch}')
+        print(f'\t{history}')
 
-history = representation_learner.fit(
-    x=train_ds,
-    batch_size=config.BATCH_SIZE,
-    epochs=50,  # for better results, increase the number of epochs to 500.
-    callbacks=[ValidationSinglesAccuracyScore()]
-)
+    if counter % 10 == 0:
+        for val_data, val_labels in test_ds:
+            print("[VALUE] Testing model on batch")
+            print(representation_learner.test_on_batch(x=val_data[:], y=val_labels[:]))
 
-""" Plot training loss"""
-
-plt.plot(history.history["loss"])
-plt.ylabel("loss")
-plt.xlabel("epoch")
-plt.savefig(config.SINGLE_MODALITY_TRAINING_LOSS_PLOT)
-
-# serialize model to JSON
-model_json = representation_learner.to_json()
-with open(config.SINGLE_MODALITY_MODEL_PATH, "w") as json_file:
-    json_file.write(model_json)
-# serialize weights to HDF5
-representation_learner.save_weights(config.SINGLE_MODALITY_WEIGHT_PATH)
+representation_learner.save_weights(config.RGB_MODALITY_WEIGHT_PATH)
 print("Saved encoder model to disk")
