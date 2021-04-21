@@ -170,10 +170,21 @@ class RepresentationLearner(keras.Model):
         # Return a dict mapping metric names to current value
         return {m.name: m.result() for m in self.metrics}
 
-    def test_step(self, inputs):
+    def test_step(self, data):
+        inputs = data[0]
         batch_size = tf.shape(inputs)[0]
         feature_vectors = self(inputs, training=False)
-        loss = self.compute_contrastive_loss(feature_vectors, batch_size)
+        projection, prototype = self.projection_prototype(feature_vectors)
+        loss = 0
+        for i, obj_id in enumerate(self.obj_for_assign):
+            out = prototype[batch_size * obj_id: batch_size * (obj_id + 1)]
+            q = sinkhorn(out)
+            subloss = 0
+            for v in np.delete(np.arange(self.num_augmentations), obj_id):
+                p = tf.nn.softmax(prototype[batch_size * v: batch_size * (v + 1)] / self.temperature)
+                subloss -= tf.math.reduce_mean(tf.math.reduce_sum(q * tf.math.log(p), axis=1))
+            loss += subloss / self.num_augmentations
+        loss = loss / len(self.obj_for_assign)
         self.loss_tracker.update_state(loss)
         return {"loss": self.loss_tracker.result()}
 
@@ -203,7 +214,7 @@ representation_learner.compile(
 print("[INFO] training encoder...")
 counter = 0
 history = None
-while counter <= 0:#config.EPOCHS:
+while counter <= config.EPOCHS:
     counter += 1
     print(f'* Epoch: {counter}')
     data_batch = 0
@@ -215,8 +226,6 @@ while counter <= 0:#config.EPOCHS:
                                                         return_dict=True)
         print(f'* Data Batch: {data_batch}')
         print(f'\t{history}')
-        if data_batch >= 3:
-            break
 
     if counter % 10 == 0:
         for val_data, val_labels in test_ds:
@@ -238,9 +247,6 @@ while counter <= 0:#config.EPOCHS:
 # plt.savefig(config.SINGLE_MODALITY_TRAINING_LOSS_PLOT)
 
 # serialize model to JSON
-model_json = representation_learner.to_json()
-with open(config.RGB_MODALITY_MODEL_PATH, "w") as json_file:
-    json_file.write(model_json)
 # serialize weights to HDF5
 representation_learner.save_weights(config.RGB_MODALITY_WEIGHT_PATH)
 print("Saved encoder model to disk")
