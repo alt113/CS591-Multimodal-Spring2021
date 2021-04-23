@@ -153,7 +153,8 @@ class RepresentationLearner(keras.Model):
         # Return a dict mapping metric names to current value
         return {m.name: m.result() for m in self.metrics}
 
-    def test_step(self, inputs):
+    def test_step(self, data):#inputs):
+        inputs = data[0]
         batch_size = tf.shape(inputs)[0]
         feature_vectors = self(inputs, training=False)
         loss = self.compute_contrastive_loss(feature_vectors, batch_size)
@@ -203,24 +204,5 @@ while counter <= config.EPOCHS:
             print("[VALUE] Testing model on batch")
             print(representation_learner.test_on_batch(x=val_data[:], y=val_labels[:]))
 
-# history = representation_learner.fit(
-#     x=train_ds,
-#     batch_size=config.BATCH_SIZE,
-#     epochs=50,  # for better results, increase the number of epochs to 500.
-#     callbacks=[ValidationSinglesAccuracyScore()]
-# )
-
-# """ Plot training loss"""
-
-# plt.plot(history["loss"])
-# plt.ylabel("loss")
-# plt.xlabel("epoch")
-# plt.savefig(config.SINGLE_MODALITY_TRAINING_LOSS_PLOT)
-
-# serialize model to JSON
-model_json = representation_learner.to_json()
-with open(config.RGB_MODALITY_MODEL_PATH, "w") as json_file:
-    json_file.write(model_json)
-# serialize weights to HDF5
 representation_learner.save_weights(config.RGB_MODALITY_WEIGHT_PATH)
 print("Saved encoder model to disk")
