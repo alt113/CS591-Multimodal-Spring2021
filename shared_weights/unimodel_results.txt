@@ -1,0 +1,58 @@
+Shared weights network results
+------------------------------
+
++ Architecture: ResNet101
+  ------------
+ 
+ + Pretraining: BCE
+   -----------
+ 
+ + Modality:
+  ----------
+  + RGB: 4.82 %
+    ---
+    
+  + Depth: 4.82 %
+    -----
+
++ Architecture: ResNet101
+  ------------
+ 
+ + Pretraining: Contrastive
+   -----------
+ 
+ + Modality:
+  ----------
+  + RGB: 4.78 %
+    ---
+    
+  + Depth: 4.80 %
+    -----
+    
++ Architecture: ResNet50
+  ------------
+ 
+ + Pretraining: BCE
+   -----------
+ 
+ + Modality:
+  ----------
+  + RGB: 4.85 %
+    ---
+    
+  + Depth: 4.57 %
+    -----
+
++ Architecture: ResNet50
+  ------------
+ 
+ + Pretraining: Contrastive
+   -----------
+ 
+ + Modality:
+  ----------
+  + RGB: 2.06 %
+    ---
+    
+  + Depth: 4.85 %
+    -----
