@@ -122,7 +122,7 @@ class MultiNet(object):
                     ro_rgb = 0
 
                 CLS_RGB = scce(y_true, y_pred).numpy()
-                return scce(y_true, y_pred) + 0.01 * ro_rgb * frob_norm_squared_rgb
+                return scce(y_true, y_pred) + (0.001 * ro_rgb * frob_norm_squared_rgb)
 
             else:
                 RGBS_TURN = True
@@ -134,7 +134,7 @@ class MultiNet(object):
                     ro_depth = 0
 
                 CLS_DEPTH = scce(y_true, y_pred).numpy()
-                return scce(y_true, y_pred) + 0.01 * ro_depth * frob_norm_squared_depth
+                return scce(y_true, y_pred) + (0.001 * ro_depth * frob_norm_squared_depth)
 
         return multinet_loss
 

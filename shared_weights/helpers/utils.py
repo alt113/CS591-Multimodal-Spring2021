@@ -71,8 +71,8 @@ def plot_training(H, path_to_plot):
 
 def save_model_history(H, path_to_csv):
     # save model history dictionary as CSV
-    keys = H[0].keys()
-    with open(path_to_csv, 'w', newline='') as output_file:
-        dict_writer = csv.DictWriter(output_file, keys)
-        dict_writer.writeheader()
-        dict_writer.writerows(H)
+    fields = ['loss', 'sparse_categorical_crossentropy']
+    with open(path_to_csv, 'w') as f:
+        write = csv.writer(f)
+        write.writerow(fields)
+        write.writerows(H)

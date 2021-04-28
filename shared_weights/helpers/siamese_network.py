@@ -6,7 +6,7 @@ from shared_weights.helpers.base_encoders import RESNET50, RESNET101, RESNET152,
 from shared_weights.helpers.base_encoders import build_lenet, build_alexnet, VGG16, VGG19
 from shared_weights.helpers import config
 
-from tensorflow import keras
+import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input
@@ -61,22 +61,22 @@ def create_classifier(encoder, trainable_base=False, lr=0.001):
     for layer in encoder.layers:
         layer.trainable = trainable_base
 
+    # encoder = tf.keras.Sequential([
+    #     encoder.layers[:2],
+    #     layers.Dropout(config.DROPOUT_RATE),
+    #     layers.Dense(config.HIDDEN_UNITS, activation="relu"),
+    #     layers.Dropout(config.DROPOUT_RATE),
+    #     layers.Dense(config.NUM_OF_CLASSES, activation="softmax")
+    # ])
+
     encoder.add(layers.Dropout(config.DROPOUT_RATE))
     encoder.add(layers.Dense(config.HIDDEN_UNITS, activation="relu"))
     encoder.add(layers.Dropout(config.DROPOUT_RATE))
     encoder.add(layers.Dense(config.NUM_OF_CLASSES, activation="softmax"))
 
-    # inputs = keras.Input(shape=config.IMG_SHAPE)
-    # features = encoder(inputs)
-    # features = layers.Dropout(config.DROPOUT_RATE)(features)
-    # features = layers.Dense(config.HIDDEN_UNITS, activation="relu")(features)
-    # features = layers.Dropout(config.DROPOUT_RATE)(features)
-    # outputs = layers.Dense(config.NUM_OF_CLASSES, activation="softmax")(features)
-    #
-    # model = keras.Model(inputs=inputs, outputs=outputs, name="classifier")
-    encoder.compile(
-        optimizer=keras.optimizers.Adam(lr),
-        loss=keras.losses.CategoricalCrossentropy(),
-        metrics=[keras.metrics.CategoricalAccuracy()],
-    )
+    # encoder.compile(
+    #     optimizer=keras.optimizers.Adam(lr),
+    #     loss=keras.losses.CategoricalCrossentropy(),
+    #     metrics=[keras.metrics.CategoricalAccuracy()],
+    # )
     return encoder

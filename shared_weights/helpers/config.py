@@ -9,7 +9,7 @@ IMG_SHAPE = (128, 128, 3)
 
 # specify the batch size and number of epochs
 BATCH_SIZE = 64
-EPOCHS = 50
+EPOCHS = 20  # used 50 for siamese network & 30 for scratch MIMO
 
 # specify the projection head size
 PROJECTION_UNITS = 128
@@ -30,21 +30,33 @@ MULTINET_BASE_OUTPUT = 'multi_input_multi_output/simclr'
 # use the base output path to derive the path to the serialized
 # model along with training history plot
 # -- Shared Weights --
-MODEL_PATH = os.path.sep.join([BASE_OUTPUT, "models/bce_vgg16_scratch.json"])
-FINE_TUNED_CLASSIFICATION_MODEL = os.path.sep.join([BASE_OUTPUT, "classifiers/bce_vgg16_scratch.json"])
+MODEL_PATH = os.path.sep.join([BASE_OUTPUT, "models/contrastive_resnet101_scratch.json"])
+BCE_MODEL_PATH = os.path.sep.join([BASE_OUTPUT, "models/bce_resnet101_scratch.json"])
 
-WEIGHT_PATH = os.path.sep.join([BASE_OUTPUT, "weights/bce_vgg16_scratch_weights.h5"])
-FINE_TUNED_CLASSIFICATION_WEIGHTS = os.path.sep.join([BASE_OUTPUT, "classifier_weights/bce_vgg16_scratch_weights.h5"])
+FINE_TUNED_CLASSIFICATION_MODEL = os.path.sep.join([BASE_OUTPUT, "classifiers/contrastive_resnet101_classifier.json"])
+BCE_FINE_TUNED_CLASSIFICATION_MODEL = os.path.sep.join([BASE_OUTPUT, "classifiers/bce_resnet101_classifier.json"])
+
+WEIGHT_PATH = os.path.sep.join([BASE_OUTPUT, "weights/contrastive_resnet101_scratch_weights.h5"])
+BCE_WEIGHT_PATH = os.path.sep.join([BASE_OUTPUT, "weights/bce_resnet101_scratch_weights.h5"])
+FINE_TUNED_CLASSIFICATION_WEIGHTS = os.path.sep.join([BASE_OUTPUT, "classifier_weights/contrastive_resnet101_classifier_weights.h5"])
+BCE_FINE_TUNED_CLASSIFICATION_WEIGHTS = os.path.sep.join([BASE_OUTPUT, "classifier_weights/bce_resnet101_classifier_weights.h5"])
 
 PLOT_PATH = os.path.sep.join([BASE_OUTPUT, "contrastive_plot.png"])
-FROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH = os.path.sep.join([BASE_OUTPUT, "frozen_history/bce_vgg16_scratch_history.csv"])
+FROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH = os.path.sep.join([BASE_OUTPUT, "frozen_history/contrastive_resnet101_classifier_history.csv"])
 UNFROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH = os.path.sep.join([BASE_OUTPUT,
-                                                               "unfrozen_history/bce_vgg16_scratch_history.csv"])
+                                                               "unfrozen_history/contrastive_resnet101_classifier_history.csv"])
+BCE_FROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH = os.path.sep.join([BASE_OUTPUT, "frozen_history/bce_resnet101_classifier_history.csv"])
+BCE_UNFROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH = os.path.sep.join([BASE_OUTPUT,
+                                                               "unfrozen_history/bce_resnet101_classifier_history.csv"])
+
 
 # -- Multinet Single Modalities --
-RGB_MODALITY_WEIGHT_PATH = os.path.sep.join([MULTINET_BASE_OUTPUT, "classifier_weights/multinet_rgb_scratch_weights.h5"])
-DEPTH_MODALITY_WEIGHT_PATH = os.path.sep.join([MULTINET_BASE_OUTPUT,
-                                               "classifier_weights/multinet_depth_scratch_weights.h5"])
+RGB_MODALITY_WEIGHT_PATH = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/simclr_resnet50_rgb_imagenet_weights.h5"])
+DEPTH_MODALITY_WEIGHT_PATH = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/simclr_resnet50_depth_imagenet_weights.h5"])
+
+MIMO_RGB_WEIGHTS = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/mimo_rgb_imagenet_weights.h5"])
+MIMO_DEPTH_WEIGHTS = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/mimo_depth_imagenet_weights.h5"])
+
 
 # save the loss plot after training for evaluation
 SINGLE_MODALITY_TRAINING_LOSS_PLOT = os.path.sep.join([MULTINET_BASE_OUTPUT,

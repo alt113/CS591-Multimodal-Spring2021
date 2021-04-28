@@ -135,7 +135,7 @@ class RepresentationLearner(keras.Model):
 """ Train the model"""
 # Create vision encoder.
 network_input = tf.keras.layers.Input(shape=config.IMG_SHAPE)
-encoder = create_encoder(base='resnet50', pretrained=False)(network_input)
+encoder = create_encoder(base='resnet50', pretrained=True)(network_input)
 encoder_output = tf.keras.layers.Dense(config.HIDDEN_UNITS)(encoder)
 encoder = keras.Model(network_input, encoder_output)
 # Create representation learner.
