@@ -9,7 +9,7 @@ IMG_SHAPE = (128, 128, 3)
 
 # specify the batch size and number of epochs
 BATCH_SIZE = 64
-EPOCHS = 50
+EPOCHS = 20  # used 50 for siamese network & 30 for scratch MIMO
 
 # specify the projection head size
 PROJECTION_UNITS = 128
@@ -51,11 +51,11 @@ BCE_UNFROZEN_SIAMESE_TRAINING_HISTORY_CSV_PATH = os.path.sep.join([BASE_OUTPUT,
 
 
 # -- Multinet Single Modalities --
-RGB_MODALITY_MODEL_PATH = os.path.sep.join([MULTINET_BASE_OUTPUT, "models/swav_resnet50_rgb_scratch.json"])
-RGB_MODALITY_WEIGHT_PATH = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/swav_resnet50_rgb_scratch_weights.h5"])
+RGB_MODALITY_WEIGHT_PATH = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/simclr_resnet50_rgb_imagenet_weights.h5"])
+DEPTH_MODALITY_WEIGHT_PATH = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/simclr_resnet50_depth_imagenet_weights.h5"])
 
-DEPTH_MODALITY_MODEL_PATH = os.path.sep.join([MULTINET_BASE_OUTPUT, "models/swav_resnet50_depth_scratch.json"])
-DEPTH_MODALITY_WEIGHT_PATH = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/swav_resnet50_depth_scratch_weights.h5"])
+MIMO_RGB_WEIGHTS = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/mimo_rgb_imagenet_weights.h5"])
+MIMO_DEPTH_WEIGHTS = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/mimo_depth_imagenet_weights.h5"])
 
 # save the loss plot after training for evaluation
 SINGLE_MODALITY_TRAINING_LOSS_PLOT = os.path.sep.join([MULTINET_BASE_OUTPUT,

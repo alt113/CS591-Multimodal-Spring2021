@@ -76,4 +76,3 @@ def save_model_history(H, path_to_csv):
         write = csv.writer(f)
         write.writerow(fields)
         write.writerows(H)
-    

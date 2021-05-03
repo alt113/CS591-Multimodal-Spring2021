@@ -1,0 +1,16 @@
+RGB modality:
+------------
+Average accuracy value for 97 batches: 0.0482 (4.82 %)
+
+Depth modality:
+--------------
+Average accuracy value for 97 batches: 0.0454 (4.54 %)
+
+RGB (ImageNet) modality:
+-----------------------
+Average accuracy value for 97 batches: 0.0453 (4.53 %)
+Top-5 average accuracy value for 97 batches: 0.0781 (7.81%)
+
+Depth (ImageNet) modality:
+-------------------------
+Average accuracy value for 97 batches: 0.048 (4.8 %)

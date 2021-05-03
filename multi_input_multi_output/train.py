@@ -1,4 +1,3 @@
-# import the necessary packages
 import os
 
 from multi_input_multi_output.models import MultiNet
@@ -135,7 +134,7 @@ class RepresentationLearner(keras.Model):
 network_input = keras.layers.Input(shape=config.IMG_SHAPE)
 
 # Load RGB vision encoder.
-r_encoder = create_encoder(base='resnet50', pretrained=False)(network_input)
+r_encoder = create_encoder(base='resnet50', pretrained=True)(network_input)
 encoder_output = keras.layers.Dense(config.HIDDEN_UNITS)(r_encoder)
 r_encoder = keras.Model(network_input, encoder_output)
 # Create representation learner.
@@ -151,7 +150,7 @@ functional_model = flatten_model(r_representation_learner.layers[0])
 rgb_encoder = functional_model.layers[1]
 
 # Load Depth vision encoder.
-d_encoder = create_encoder(base='resnet50', pretrained=False)(network_input)
+d_encoder = create_encoder(base='resnet50', pretrained=True)(network_input)
 encoder_output = keras.layers.Dense(config.HIDDEN_UNITS)(d_encoder)
 d_encoder = keras.Model(network_input, encoder_output)
 # Create representation learner.
