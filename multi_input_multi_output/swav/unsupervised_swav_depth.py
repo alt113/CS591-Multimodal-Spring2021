@@ -38,18 +38,19 @@ import tensorflow_addons as tfa
 from tensorflow import keras
 from tensorflow.keras import layers
 import matplotlib.pyplot as plt
+import numpy as np
 
 """ Prepare the data"""
 # load FAT dataset
 print("[INFO] loading FAT dataset...")
 train_ds = fat_dataset(split='train',
-                       data_type='rgb',
+                       data_type='depth',
                        batch_size=config.BATCH_SIZE,
                        shuffle=True,
                        pairs=False)
 
 test_ds = fat_dataset(split='test',
-                      data_type='rgb',
+                      data_type='depth',
                       batch_size=config.BATCH_SIZE,
                       shuffle=True,
                       pairs=False)
@@ -69,7 +70,39 @@ augmentation_output = layers.experimental.preprocessing.RandomZoom(height_factor
                                                                  fill_mode="constant")(data_augmentation)
 data_augmentation = keras.Model(augmentation_input, augmentation_output)
 
-""" Unsupervised contrastive loss"""
+
+def get_projection_prototype(dense_1=1024, dense_2=96, prototype_dimension=10):
+    inputs = layers.Input((2048,))
+    projection_1 = layers.Dense(dense_1)(inputs)
+    projection_1 = layers.BatchNormalization()(projection_1)
+    projection_1 = layers.Activation("relu")(projection_1)
+
+    projection_2 = layers.Dense(dense_2)(projection_1)
+    projection_2_normalize = tf.math.l2_normalize(projection_2, axis=1, name='projection')
+
+    prototype = layers.Dense(prototype_dimension, use_bias=False, name='prototype')(projection_2_normalize)
+
+    return keras.models.Model(inputs=inputs, outputs=[projection_2_normalize, prototype])
+
+
+def sinkhorn(sample_prototype_batch):
+    Q = tf.transpose(tf.exp(sample_prototype_batch/0.05))
+    Q /= tf.keras.backend.sum(Q)
+    K, B = Q.shape
+
+    u = tf.zeros_like(K, dtype=tf.float32)
+    r = tf.ones_like(K, dtype=tf.float32) / K
+    c = tf.ones_like(B, dtype=tf.float32) / B
+
+    for _ in range(3):
+        u = tf.keras.backend.sum(Q, axis=1)
+        Q *= tf.expand_dims((r / u), axis=1)
+        Q *= tf.expand_dims(c / tf.keras.backend.sum(Q, axis=0), 0)
+
+    final_quantity = Q / tf.keras.backend.sum(Q, axis=0, keepdims=True)
+    final_quantity = tf.transpose(final_quantity)
+
+    return final_quantity
 
 
 class RepresentationLearner(keras.Model):
@@ -86,43 +119,16 @@ class RepresentationLearner(keras.Model):
         super(RepresentationLearner, self).__init__(**kwargs)
         self.encoder = encoder
         # Create projection head.
-        self.projector = keras.Sequential(
-            [
-                layers.Dropout(dropout_rate),
-                layers.Dense(units=projection_units, use_bias=False),
-                layers.BatchNormalization(),
-                layers.ReLU(),
-            ]
-        )
         self.num_augmentations = num_augmentations
         self.temperature = temperature
         self.l2_normalize = l2_normalize
         self.loss_tracker = keras.metrics.Mean(name="loss")
+        self.projection_prototype = get_projection_prototype(2048, 128, 63)
+        self.obj_for_assign = [0, 1]
 
     @property
     def metrics(self):
         return [self.loss_tracker]
-
-    def compute_contrastive_loss(self, feature_vectors, batch_size):
-        num_augmentations = tf.shape(feature_vectors)[0] // batch_size
-        if self.l2_normalize:
-            feature_vectors = tf.math.l2_normalize(feature_vectors, -1)
-        # The logits shape is [num_augmentations * batch_size, num_augmentations * batch_size].
-        logits = (
-            tf.linalg.matmul(feature_vectors, feature_vectors, transpose_b=True)
-            / self.temperature
-        )
-        # Apply log-max trick for numerical stability.
-        logits_max = tf.math.reduce_max(logits, axis=1)
-        logits = logits - logits_max
-        # The shape of targets is [num_augmentations * batch_size, num_augmentations * batch_size].
-        # targets is a matrix consits of num_augmentations submatrices of shape [batch_size * batch_size].
-        # Each [batch_size * batch_size] submatrix is an identity matrix (diagonal entries are ones).
-        targets = tf.tile(tf.eye(batch_size), [num_augmentations, num_augmentations])
-        # Compute cross entropy loss
-        return keras.losses.categorical_crossentropy(
-            y_true=targets, y_pred=logits, from_logits=True
-        )
 
     def call(self, inputs):
         # Create augmented versions of the images.
@@ -133,8 +139,7 @@ class RepresentationLearner(keras.Model):
         augmented = layers.Concatenate(axis=0)(augmented)
         # Generate embedding representations of the images.
         features = self.encoder(augmented)
-        # Apply projection head.
-        return self.projector(features)
+        return features
 
     def train_step(self, data):#inputs):
         inputs = data[0]
@@ -142,9 +147,21 @@ class RepresentationLearner(keras.Model):
         # Run the forward pass and compute the contrastive loss
         with tf.GradientTape() as tape:
             feature_vectors = self(inputs, training=True)
-            loss = self.compute_contrastive_loss(feature_vectors, batch_size)
+            projection, prototype = self.projection_prototype(feature_vectors)
+            projection = tf.stop_gradient(projection)
+            loss = 0
+            for i, obj_id in enumerate(self.obj_for_assign):
+                with tape.stop_recording():
+                    out = prototype[batch_size * obj_id: batch_size * (obj_id + 1)]
+                    q = sinkhorn(out)
+                subloss = 0
+                for v in np.delete(np.arange(self.num_augmentations), obj_id):
+                    p = tf.nn.softmax(prototype[batch_size * v: batch_size * (v + 1)] / self.temperature)
+                    subloss -= tf.math.reduce_mean(tf.math.reduce_sum(q * tf.math.log(p), axis=1))
+                loss += subloss / self.num_augmentations
+            loss = loss / len(self.obj_for_assign)
         # Compute gradients
-        trainable_vars = self.trainable_variables
+        trainable_vars = self.encoder.trainable_variables + self.projection_prototype.trainable_variables
         gradients = tape.gradient(loss, trainable_vars)
         # Update weights
         self.optimizer.apply_gradients(zip(gradients, trainable_vars))
@@ -153,11 +170,21 @@ class RepresentationLearner(keras.Model):
         # Return a dict mapping metric names to current value
         return {m.name: m.result() for m in self.metrics}
 
-    def test_step(self, data):#inputs):
+    def test_step(self, data):
         inputs = data[0]
         batch_size = tf.shape(inputs)[0]
         feature_vectors = self(inputs, training=False)
-        loss = self.compute_contrastive_loss(feature_vectors, batch_size)
+        projection, prototype = self.projection_prototype(feature_vectors)
+        loss = 0
+        for i, obj_id in enumerate(self.obj_for_assign):
+            out = prototype[batch_size * obj_id: batch_size * (obj_id + 1)]
+            q = sinkhorn(out)
+            subloss = 0
+            for v in np.delete(np.arange(self.num_augmentations), obj_id):
+                p = tf.nn.softmax(prototype[batch_size * v: batch_size * (v + 1)] / self.temperature)
+                subloss -= tf.math.reduce_mean(tf.math.reduce_sum(q * tf.math.log(p), axis=1))
+            loss += subloss / self.num_augmentations
+        loss = loss / len(self.obj_for_assign)
         self.loss_tracker.update_state(loss)
         return {"loss": self.loss_tracker.result()}
 
@@ -165,9 +192,10 @@ class RepresentationLearner(keras.Model):
 """ Train the model"""
 # Create vision encoder.
 network_input = tf.keras.layers.Input(shape=config.IMG_SHAPE)
-encoder = create_encoder(base='resnet50', pretrained=True)(network_input)
-encoder_output = tf.keras.layers.Dense(config.HIDDEN_UNITS)(encoder)
-encoder = keras.Model(network_input, encoder_output)
+encoder = create_encoder(base='resnet101', pretrained=False)(network_input)
+#encoder_output = tf.keras.layers.Dense(config.HIDDEN_UNITS)(encoder)
+#encoder = keras.Model(network_input, encoder_output)
+encoder = keras.Model(network_input, encoder)
 # Create representation learner.
 representation_learner = RepresentationLearner(
     encoder, config.PROJECTION_UNITS, num_augmentations=2, temperature=0.1
@@ -204,5 +232,21 @@ while counter <= config.EPOCHS:
             print("[VALUE] Testing model on batch")
             print(representation_learner.test_on_batch(x=val_data[:], y=val_labels[:]))
 
-representation_learner.save_weights(config.RGB_MODALITY_WEIGHT_PATH)
+# history = representation_learner.fit(
+#     x=train_ds,
+#     batch_size=config.BATCH_SIZE,
+#     epochs=50,  # for better results, increase the number of epochs to 500.
+#     callbacks=[ValidationSinglesAccuracyScore()]
+# )
+
+# """ Plot training loss"""
+
+# plt.plot(history["loss"])
+# plt.ylabel("loss")
+# plt.xlabel("epoch")
+# plt.savefig(config.SINGLE_MODALITY_TRAINING_LOSS_PLOT)
+
+# serialize model to JSON
+# serialize weights to HDF5
+representation_learner.save_weights(config.DEPTH_MODALITY_WEIGHT_PATH)
 print("Saved encoder model to disk")

@@ -25,7 +25,7 @@ DROPOUT_RATE = 0.5
 
 # define the path to the base output directory
 BASE_OUTPUT = "shared_weights/pre_trained_encoders"
-MULTINET_BASE_OUTPUT = 'multi_input_multi_output/simclr'
+MULTINET_BASE_OUTPUT = 'multi_input_multi_output/swav'
 
 # use the base output path to derive the path to the serialized
 # model along with training history plot
@@ -56,7 +56,6 @@ DEPTH_MODALITY_WEIGHT_PATH = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/si
 
 MIMO_RGB_WEIGHTS = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/mimo_rgb_imagenet_weights.h5"])
 MIMO_DEPTH_WEIGHTS = os.path.sep.join([MULTINET_BASE_OUTPUT, "weights/mimo_depth_imagenet_weights.h5"])
-
 
 # save the loss plot after training for evaluation
 SINGLE_MODALITY_TRAINING_LOSS_PLOT = os.path.sep.join([MULTINET_BASE_OUTPUT,

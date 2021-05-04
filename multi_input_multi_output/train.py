@@ -252,6 +252,7 @@ while counter <= config.EPOCHS:
                                                 return_dict=True)
         print(f'* Data Batch: {data_batch}')
         print(f'\t{history}')
+        break
 
     if counter % 10 == 0:
         print("[VALUE] Testing model on batch")

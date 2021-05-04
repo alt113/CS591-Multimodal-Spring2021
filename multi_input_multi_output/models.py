@@ -120,7 +120,6 @@ class MultiNet(object):
                     ro_rgb = np.exp(2 * delta_l_rgb) - 1
                 else:
                     ro_rgb = 0
-
                 CLS_RGB = scce(y_true, y_pred).numpy()
                 return scce(y_true, y_pred) + (0.001 * ro_rgb * frob_norm_squared_rgb)
 
